@@ -1,0 +1,36 @@
+{
+  "name": "sector",
+  "version": "0.1.0",
+  "description": "A component and pub/sub based UI framework for javascript applications.",
+  "main": "dist/sector.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acdaniel/sector.git"
+  },
+  "keywords": [
+    "pub/sub",
+    "component",
+    "ui",
+    "browser",
+    "javascript"
+  ],
+  "author": "Adam Daniel <adam@acdaniel.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/acdaniel/sector/issues"
+  },
+  "homepage": "https://github.com/acdaniel/sector",
+  "devDependencies": {
+    "gulp": "^3.5.6",
+    "gulp-uglify": "^0.2.1",
+    "gulp-rename": "^1.2.0",
+    "gulp-header": "^1.0.2"
+  },
+  "dependencies": {
+    "lodash": "^2.4.1",
+    "jquery": "^1.11.0"
+  }
+}
