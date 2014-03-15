@@ -1,34 +1,25 @@
 var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
     rename = require('gulp-rename'),
-    header = require('gulp-header');
+    wrap = require('gulp-wrap'),
+    concat = require('gulp-concat');
 
 var pkg = require('./package.json');
-var banner = ['/**',
- ' * <%= pkg.name %> v<%= pkg.version %>',
- ' * <%= pkg.description %>',
- ' * <%= pkg.homepage %>',
- ' *',
- ' * Copyright 2014 <%= pkg.author %>',
- ' * Released under the <%= pkg.license %> license',
- ' *',
- ' * Date: <%= date %>',
- ' */',
-  ''].join('\n');
-var minBanner = '/** <%= pkg.name %> v<%= pkg.version %> | (c) 2014 <%= pkg.author %> | <%= pkg.license %> license */\n';
+var src = ['src/core.js', 'src/mixins/*.js', 'src/components/*.js'];
 
-gulp.task('default', ['copy', 'min']);
+gulp.task('default', ['build', 'min']);
 
-gulp.task('copy', function () {
-  return gulp.src('sector.js')
-    .pipe(header(banner, { pkg : pkg, date: new Date().toISOString() } ))
-    .pipe(gulp.dest('./dist'));
+gulp.task('build', function () {
+  return gulp.src(src)
+    .pipe(concat('sector.js'))
+    .pipe(wrap({ src: 'src/_wrapper.js'}, { pkg : pkg, date: new Date().toISOString() }))
+    .pipe(gulp.dest('dist'));
 });
 
-gulp.task('min', function () {
-  return gulp.src('sector.js')
+gulp.task('min', ['build'], function () {
+  return gulp.src('dist/sector.js')
     .pipe(uglify())
-    .pipe(header(minBanner, { pkg : pkg } ))
+    .pipe(wrap({ src: 'src/_wrapper.min.js'}, { pkg : pkg, date: new Date().toISOString() }))
     .pipe(rename({suffix: '.min'}))
-    .pipe(gulp.dest('./dist'));
+    .pipe(gulp.dest('dist'));
 });

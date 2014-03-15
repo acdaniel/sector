@@ -27,7 +27,8 @@
     "gulp": "^3.5.6",
     "gulp-uglify": "^0.2.1",
     "gulp-rename": "^1.2.0",
-    "gulp-header": "^1.0.2"
+    "gulp-concat": "^2.1.7",
+    "gulp-wrap": "^0.3.0"
   },
   "dependencies": {
     "lodash": "^2.4.1",
