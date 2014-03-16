@@ -1,8 +1,8 @@
 {
   "name": "sector",
-  "version": "0.1.0",
-  "description": "A component and pub/sub based UI framework for javascript applications.",
-  "main": "dist/sector.js",
+  "version": "0.1.1",
+  "description": "A component and pub/sub based UI library for javascript applications.",
+  "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -27,10 +27,12 @@
     "gulp": "^3.5.6",
     "gulp-uglify": "^0.2.1",
     "gulp-rename": "^1.2.0",
-    "gulp-header": "^1.0.2"
+    "browserify": "^3.32.1",
+    "gulp-browserify": "^0.5.0",
+    "gulp-header": "^1.0.2",
+    "gulp-rimraf": "0.0.9"
   },
   "dependencies": {
-    "lodash": "^2.4.1",
-    "jquery": "^1.11.0"
+    "lodash-node": "^2.4.1"
   }
 }

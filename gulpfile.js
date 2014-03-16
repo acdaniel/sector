@@ -1,7 +1,9 @@
 var gulp = require('gulp'),
     uglify = require('gulp-uglify'),
     rename = require('gulp-rename'),
-    header = require('gulp-header');
+    header = require('gulp-header'),
+    rimraf = require('gulp-rimraf'),
+    browserify = require('gulp-browserify');
 
 var pkg = require('./package.json');
 var banner = ['/**',
@@ -15,20 +17,58 @@ var banner = ['/**',
  ' * Date: <%= date %>',
  ' */',
   ''].join('\n');
-var minBanner = '/** <%= pkg.name %> v<%= pkg.version %> | (c) 2014 <%= pkg.author %> | <%= pkg.license %> license */\n';
+var minifiedBanner = '/** <%= pkg.name %> v<%= pkg.version %> | (c) 2014 <%= pkg.author %> | <%= pkg.license %> license */\n';
 
-gulp.task('default', ['copy', 'min']);
+gulp.task('default', ['build', 'build:debug', 'build:slim', 'minify']);
 
-gulp.task('copy', function () {
-  return gulp.src('sector.js')
+gulp.task('build', function () {
+  return gulp.src('lib/index.js', { read: false })
+    .pipe(browserify({
+      // debug: true,
+      ignore: ['./utils-ext-globals'],
+      standalone: 'sector'
+    }))
     .pipe(header(banner, { pkg : pkg, date: new Date().toISOString() } ))
-    .pipe(gulp.dest('./dist'));
+    .pipe(rename('sector.js'))
+    .pipe(gulp.dest('dist'));
 });
 
-gulp.task('min', function () {
-  return gulp.src('sector.js')
+gulp.task('build:debug', function () {
+  return gulp.src('lib/index.js', { read: false })
+    .pipe(browserify({
+      debug: true,
+      ignore: ['./utils-ext-globals'],
+      standalone: 'sector'
+    }))
+    .pipe(header(banner, { pkg : pkg, date: new Date().toISOString() } ))
+    .pipe(rename('sector.debug.js'))
+    .pipe(gulp.dest('dist'));
+});
+
+gulp.task('build:slim', function () {
+  return gulp.src('lib/index.js', { read: false })
+    .pipe(browserify({
+      // debug: true,
+      ignore: ['./utils-ext-require'],
+      standalone: 'sector'
+    }))
+    .pipe(header(banner, { pkg : pkg, date: new Date().toISOString() } ))
+    .pipe(rename('sector.slim.js'))
+    .pipe(gulp.dest('dist'));
+});
+
+gulp.task('minify', ['build', 'build:debug', 'build:slim'], function () {
+  return gulp.src(['dist/sector.js', 'dist/sector.debug.js', 'dist/sector.slim.js'])
     .pipe(uglify())
-    .pipe(header(minBanner, { pkg : pkg } ))
+    .pipe(header(minifiedBanner, { pkg : pkg } ))
     .pipe(rename({suffix: '.min'}))
-    .pipe(gulp.dest('./dist'));
+    .pipe(gulp.dest('dist'));
+});
+
+gulp.task('clean', function () {
+  return gulp.src(['node_modules', 'dist/**/*']).pipe(rimraf());
+});
+
+gulp.task('watch', function () {
+  gulp.watch('lib/**/*.js', ['default']);
 });
