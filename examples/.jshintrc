@@ -16,8 +16,9 @@
   "strict": false,
 
   "globals": {
-    "_": true,
-    "sector": true,
+    "require": true,
+    "module": true,
+    "exports": true,
     "console": true
   }
 }
