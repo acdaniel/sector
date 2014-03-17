@@ -1,12 +1,12 @@
 /**
- * sector v0.1.2
+ * sector v0.1.3
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-03-17T03:45:15.142Z
+ * Date: 2014-03-17T14:26:51.211Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -219,9 +219,10 @@ var Router = Component.define({
 
 module.exports = Router;
 },{"../component":1,"../utils":11}],3:[function(_dereq_,module,exports){
+// Sector.js
+// =========
 
-exports.Component = _dereq_('./component');
-exports.utils = _dereq_('./utils');
+// Exports the core mixins.
 exports.mixins = {
   Hooked: _dereq_('./mixins/hooked'),
   Traceable: _dereq_('./mixins/traceable'),
@@ -229,11 +230,35 @@ exports.mixins = {
   PubSub: _dereq_('./mixins/pubsub'),
   View: _dereq_('./mixins/view')
 };
+
+// Exports the included components.
 exports.components = {
   Router: _dereq_('./components/router')
 };
+
+// Exports for common utilities.
+exports.utils = _dereq_('./utils');
+
+// Export Component class, the basis for everything.
+exports.Component = _dereq_('./component');
+
+// Exports component registry instance.
 exports.registry = _dereq_('./registry');
-exports.ready = exports.utils.documentReady;
+
+// The **init** function looks for any elements in the DOM with a *data-component*
+// attribute. It then uses the attributes value to lookup a component registered
+// with the same type and the *data-options* attr, a JSON serialized value or options,
+// or the *data-options-** attrs to create a new instance of the component attached to
+// the element. For example:
+//
+//     <div id="hello" data-component="hello-world" data-options-debug="true">
+//     </div>
+//
+// Will create a new instance of the *hello-world* component with an ID of "hello"
+// and the debug option set to *true*
+//
+// This function will publish a <code>ui.ready</code> message when all
+// components have been initialized.
 exports.init = function (root, options) {
   if (!options) {
     options = root;
@@ -247,7 +272,7 @@ exports.init = function (root, options) {
     optionsAttribute: 'data-options',
     optionsAttrPrefix: 'data-options-'
   });
-  exports.ready(function () {
+  exports.utils.documentReady(function () {
     var nodes = [].slice.call(root.querySelectorAll(options.componentSelector));
     nodes.forEach(function (node) {
       var el, componentOptions = {}, attrs, type, component, optAttrPrefixLength;
@@ -269,7 +294,7 @@ exports.init = function (root, options) {
       component.attachTo(el, componentOptions);
     });
     var e = exports.utils.createEvent('pubsub.ui.ready',
-      { topis: 'ui.ready', data: {} }
+      { topic: 'ui.ready', data: {} }
     );
     window.document.dispatchEvent(e);
   });
@@ -690,7 +715,13 @@ exports.mixin = function (mixins) {
 };
 
 exports.documentReady = function (func) {
-  window.document.addEventListener('DOMContentLoaded', func);
+  if (document.readyState === 'complete' ||
+      document.readyState === 'loaded' ||
+      document.readyState === 'interactive') {
+    func();
+  } else {
+    window.document.addEventListener('DOMContentLoaded', func);
+  }
 };
 
 exports.select = function (el, selector, one) {
@@ -728,7 +759,7 @@ exports.matches = function(el, selector) {
 exports.createEvent = function (type, data, options) {
   var e;
   options = options || { bubbles: false, cancelable: false};
-  if (window.CustomEvent) {
+  if (typeof CustomEvent === 'function') {
     e = new CustomEvent(type,
       {detail: data, bubbles: options.bubbles, cancelable: options.cancelable}
     );
