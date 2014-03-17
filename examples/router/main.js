@@ -9,23 +9,23 @@ sector.Component.define({
     paramRoute: '.param-route-button'
   },
   events: {
-    'back.click': '_handleBackClick',
-    'foward.click': '_handleForwardClick',
-    'randomRoute.click': '_handleRandomRouteClick',
-    'paramRoute.click': '_handleParamRouteClick'
+    'back.click': 'handleBackClick',
+    'foward.click': 'handleForwardClick',
+    'randomRoute.click': 'handleRandomRouteClick',
+    'paramRoute.click': 'handleParamRouteClick'
   },
   initialize: function () {
     this.subscribe('ui.routeChanged', function (msg) {
       console.log(msg);
     });
   },
-  _handleBackClick: function (event) {
+  handleBackClick: function () {
     this.publish('ui.navigateBackRequested');
   },
-  _handleForwardClick: function (event) {
+  handleForwardClick: function () {
     this.publish('ui.navigateForwardRequested');
   },
-  _handleRandomRouteClick: function (event) {
+  handleRandomRouteClick: function () {
     var text = '';
     var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     for( var i=0; i < 5; i++ ) {
@@ -33,7 +33,7 @@ sector.Component.define({
     }
     this.publish('ui.navigateRequested', '/' + text);
   },
-  _handleParamRouteClick: function (event) {
+  handleParamRouteClick: function () {
     this.publish('ui.navigateRequested', '/abc/xyz/123/987?asdf=qwer');
   }
 }, sector.mixins.View);
@@ -46,4 +46,5 @@ sector.components.Router.attachTo(document, {
     abc: '/abc/:foo/123/:bar'
   }
 });
+
 sector.init();
