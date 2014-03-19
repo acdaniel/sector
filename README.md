@@ -21,7 +21,7 @@ Sector supports standalone, AMD, and Node/CommonJS deployment with [Browserify](
 
 To use as a standard standalone script:
 
-  <script src="bower_components/sector/dist/sector.js"></script>
+    <script src="bower_components/sector/dist/sector.js"></script>
 
 Sector doesn't have any external dependencies but if you are already using [lodash](http://lodash.com/) in your project, you can save a few KBs by using the *slim* version of Sector located in the dist directory.
 
