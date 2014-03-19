@@ -1,12 +1,12 @@
 /**
- * sector v0.1.3
+ * sector v0.1.4
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-03-17T14:26:51.211Z
+ * Date: 2014-03-19T00:41:40.818Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -219,10 +219,7 @@ var Router = Component.define({
 
 module.exports = Router;
 },{"../component":1,"../utils":11}],3:[function(_dereq_,module,exports){
-// Sector.js
-// =========
 
-// Exports the core mixins.
 exports.mixins = {
   Hooked: _dereq_('./mixins/hooked'),
   Traceable: _dereq_('./mixins/traceable'),
@@ -231,50 +228,60 @@ exports.mixins = {
   View: _dereq_('./mixins/view')
 };
 
-// Exports the included components.
 exports.components = {
   Router: _dereq_('./components/router')
 };
 
-// Exports for common utilities.
 exports.utils = _dereq_('./utils');
 
-// Export Component class, the basis for everything.
 exports.Component = _dereq_('./component');
 
-// Exports component registry instance.
 exports.registry = _dereq_('./registry');
 
-// The **init** function looks for any elements in the DOM with a *data-component*
-// attribute. It then uses the attributes value to lookup a component registered
-// with the same type and the *data-options* attr, a JSON serialized value or options,
-// or the *data-options-** attrs to create a new instance of the component attached to
-// the element. For example:
-//
-//     <div id="hello" data-component="hello-world" data-options-debug="true">
-//     </div>
-//
-// Will create a new instance of the *hello-world* component with an ID of "hello"
-// and the debug option set to *true*
-//
-// This function will publish a <code>ui.ready</code> message when all
-// components have been initialized.
-exports.init = function (root, options) {
-  if (!options) {
-    options = root;
-    root = document;
+exports.init = function (func, options, root) {
+  var argsLength = arguments.length;
+  if (argsLength === 1 && !exports.utils.isFunction(arguments[0])) {
+    options = arguments[0];
   }
-  root = root || document;
+  root = root || window.document;
   options = options || {};
   exports.utils.defaults(options, {
+    publishProgress: false,
+    ignoreNotFound: false,
     componentSelector: '[data-component]',
     componentAttribute: 'data-component',
     optionsAttribute: 'data-options',
-    optionsAttrPrefix: 'data-options-'
+    optionsAttrPrefix: 'data-options-',
+    readyTopic: 'ui.ready',
+    initializingTopic: 'ui.initializing'
   });
+  var pub = function (topic, data) {
+    var e = exports.utils.createEvent('pubsub.' + topic,
+      { topic: topic, data: data }
+    );
+    window.document.dispatchEvent(e);
+  };
   exports.utils.documentReady(function () {
+    if (func) { func(); }
     var nodes = [].slice.call(root.querySelectorAll(options.componentSelector));
-    nodes.forEach(function (node) {
+    var componentCount = nodes.length;
+    function deferedForEach (fn) {
+      var arr = this, i = 0, l = this.length;
+      function next () {
+        if (i >= l) { return; }
+        fn(arr[i], i++);
+        exports.utils.defer(next);
+      }
+      next();
+    }
+    var f = options.publishProgress ? deferedForEach : Array.prototype.forEach;
+    f.call(nodes, function (node, index) {
+      if (options.publishProgress) {
+        pub(options.initializingTopic, {
+          componentCount: componentCount,
+          progress: 100 * ((index + 1) / componentCount)
+        });
+      }
       var el, componentOptions = {}, attrs, type, component, optAttrPrefixLength;
       type = node.getAttribute(options.componentAttribute);
       componentOptions.id = node.id;
@@ -291,12 +298,13 @@ exports.init = function (root, options) {
       }
       el = (node.tagName.toLowerCase() === 'script') ? root : node;
       component = exports.registry.findComponent(type);
-      component.attachTo(el, componentOptions);
+      if (component) {
+        component.attachTo(el, componentOptions);
+      } else if (!options.ignoreNotFound) {
+        throw new Error('component ' + type + ' not found');
+      }
     });
-    var e = exports.utils.createEvent('pubsub.ui.ready',
-      { topic: 'ui.ready', data: {} }
-    );
-    window.document.dispatchEvent(e);
+    pub(options.readyTopic, {});
   });
 };
 },{"./component":1,"./components/router":2,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/view":8,"./registry":9,"./utils":11}],4:[function(_dereq_,module,exports){
@@ -329,34 +337,32 @@ var utils = _dereq_('../utils');
 module.exports = function () {
 
   this.listenTo = function (el, event, func) {
-    var els = el;
     if (!func) {
       func = event;
       event = el;
-      els = [this.el];
+      el = this.el;
     }
     if (utils.isString(el)) {
-      els = this.select(el);
-    } else if (!utils.isArray(el) && !(el instanceof NodeList)) {
-      els = [el];
+      el = this.select(el);
     }
     func = utils.isString(func) ? this[func] : func;
     this._listeners = this._listeners || {};
     var createRemovedListener = function (el) {
       return function (event) {
         var e = event.target;
-        if (!e || e instanceof Text) { return; }
         var eid;
         if (e === window) {
           eid = 'window';
         } else if (e === window.document) {
           eid = 'document';
+        } else if ('function' !== typeof e.getAttribute) {
+          return;
         } else {
           eid = e.getAttribute('data-sector-eid');
         }
         if (this._listeners[eid]) {
-          this.trace('element removed', e);
-          this.stopListening(e);
+          this.trace('element removed', el);
+          this.stopListening(el);
         }
       };
     };
@@ -366,71 +372,63 @@ module.exports = function () {
         func.apply(this, arguments);
       };
     };
-    for (var i = 0, l = els.length; i < l; i++) {
-      var e = els[i];
-      if (!e) { continue; }
-      var eid;
-      if (e === window) {
-        eid = 'window';
-      } else if (e === window.document) {
-        eid = 'document';
-      } else {
-        eid = e.getAttribute('data-sector-eid');
-      }
-      if (!eid) {
-        eid = utils.uniqueId('e');
-        e.setAttribute('data-sector-eid', eid);
-      }
-      if (!this._listeners[eid]) {
-        this._listeners[eid] = {};
-        this._listeners[eid].DOMNodeRemoved = utils.bind(createRemovedListener(e), this);
-        e.addEventListener('DOMNodeRemoved', this._listeners[eid].DOMNodeRemoved, false);
-      }
-      if (this._listeners[eid][event]) {
-        e.removeEventListener(event, this._listeners[eid][event], false);
-      }
-      this._listeners[eid][event] = utils.bind(createListener(), this);
-      this.trace && this.trace('<+> ' + e + '.' + event);
-      e.addEventListener(event, this._listeners[eid][event], false);
+    if (!el) { return; }
+    var eid;
+    if (el === window) {
+      eid = 'window';
+    } else if (el === window.document) {
+      eid = 'document';
+    } else {
+      eid = el.getAttribute('data-sector-eid');
     }
+    if (!eid) {
+      eid = utils.uniqueId('e');
+      el.setAttribute('data-sector-eid', eid);
+    }
+    if (!this._listeners[eid]) {
+      this._listeners[eid] = {};
+      this._listeners[eid].DOMNodeRemoved = utils.bind(createRemovedListener(el), this);
+      el.addEventListener('DOMNodeRemoved', this._listeners[eid].DOMNodeRemoved, false);
+    }
+    if (this._listeners[eid][event]) {
+      el.removeEventListener(event, this._listeners[eid][event], false);
+    }
+    this._listeners[eid][event] = utils.bind(createListener(), this);
+    this.trace && this.trace('<+> ' + el + '.' + event);
+    el.addEventListener(event, this._listeners[eid][event], false);
   };
 
   this.stopListening = function (el, event) {
-    var els = el;
-    if (arguments.length === 1 && utils.isString(el)) {
+    if (!event) {
       event = el;
-      els = [this.el];
-    } else if (utils.isString(el)) {
-      els = this.select(el);
-    } else if (!utils.isArray(el) && !(el instanceof NodeList)) {
-      els = [el];
+      el = this.el;
     }
-    for (var i = 0, l = els.length; i < l; i++) {
-      var e = els[i];
-      if (!e) { continue; }
-      var eid;
-      if (e === window) {
-        eid = 'window';
-      } else if (e === window.document) {
-        eid = 'document';
-      } else {
-        eid = e.getAttribute('data-sector-eid');
+    if (utils.isString(el)) {
+      el = this.select(el);
+    }
+    if (!el) { return; }
+    var eid;
+    if (el === window) {
+      eid = 'window';
+    } else if (el === window.document) {
+      eid = 'document';
+    } else {
+      eid = el.getAttribute('data-sector-eid');
+    }
+    if (!this._listeners || !this._listeners[eid]) { return; }
+    if (event && !this._listeners[eid][event]) { return; }
+    if (!event) {
+      for (var ev in this._listeners[eid]) {
+        this.trace && this.trace('<x> ' + el + '.' + ev);
+        e.removeEventListener(ev, this._listeners[eid][ev]);
       }
-      if (!this._listeners || !this._listeners[eid]) { continue; }
-      if (event && !this._listeners[eid][event]) { continue; }
-      if (!event) {
-        for (var ev in this._listeners[eid]) {
-          this.trace && this.trace('<x> ' + e + '.' + ev);
-          e.removeEventListener(ev, this._listeners[eid][ev]);
-        }
-      } else {
-        this.trace && this.trace('<x> ' + e + '.' + event);
-        e.removeEventListener(event, this._listeners[eid][event]);
-        delete this._listeners[eid][event];
-      }
-      if (this._listeners[eid].length === 0) {
-        delete this._listeners[eid];
-      }
+    } else {
+      this.trace && this.trace('<x> ' + el + '.' + event);
+      el.removeEventListener(event, this._listeners[eid][event]);
+      delete this._listeners[eid][event];
+    }
+    if (this._listeners[eid].length === 0) {
+      delete this._listeners[eid];
     }
   };
 
@@ -456,9 +454,11 @@ module.exports = function () {
   this.publish = function (topic, data) {
     this.trace && this.trace('=>> ' + topic , data);
     var e = utils.createEvent('pubsub.' + topic,
-      { topis: topic, data: data }
+      { topic: topic, data: data }
     );
-    window.document.dispatchEvent(e);
+    utils.defer(function () {
+      window.document.dispatchEvent(e);
+    });
   };
 
   this.subscribe = function (topic, func) {
@@ -678,6 +678,7 @@ if ('undefined' !== typeof _) {
   exports.wrap = _.wrap;
   exports.bind = _.bind;
   exports.bindAll = _.bindAll;
+  exports.defer = _.defer;
   exports.forEach = _.forEach;
   exports.map = _.map;
 }
@@ -715,9 +716,9 @@ exports.mixin = function (mixins) {
 };
 
 exports.documentReady = function (func) {
-  if (document.readyState === 'complete' ||
-      document.readyState === 'loaded' ||
-      document.readyState === 'interactive') {
+  if (window.document.readyState === 'complete' ||
+      window.document.readyState === 'loaded' ||
+      window.document.readyState === 'interactive') {
     func();
   } else {
     window.document.addEventListener('DOMContentLoaded', func);
