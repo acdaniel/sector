@@ -3,8 +3,7 @@ var gulp = require('gulp'),
     rename = require('gulp-rename'),
     header = require('gulp-header'),
     rimraf = require('gulp-rimraf'),
-    browserify = require('gulp-browserify'),
-    docco = require('gulp-docco');
+    browserify = require('gulp-browserify');
 
 var pkg = require('./package.json');
 var banner = ['/**',
@@ -72,10 +71,4 @@ gulp.task('clean', function () {
 
 gulp.task('watch', function () {
   return gulp.watch('lib/**/*.js', ['default']);
-});
-
-gulp.task('docs', function () {
-  return gulp.src('lib/**/*.js')
-    .pipe(docco())
-    .pipe(gulp.dest('docs'));
 });
