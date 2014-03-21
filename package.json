@@ -33,7 +33,6 @@
     "gulp-rimraf": "0.0.9"
   },
   "dependencies": {
-    "lodash-node": "^2.4.1",
-    "domify": "^1.2.2"
+    "lodash-node": "^2.4.1"
   }
 }
