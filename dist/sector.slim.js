@@ -6,7 +6,7 @@
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-03-19T00:41:40.818Z
+ * Date: 2014-03-21T19:29:53.527Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -453,12 +453,16 @@ module.exports = function () {
 
   this.publish = function (topic, data) {
     this.trace && this.trace('=>> ' + topic , data);
-    var e = utils.createEvent('pubsub.' + topic,
-      { topic: topic, data: data }
-    );
-    utils.defer(function () {
+    var message = '', parts = topic.split('.'), delim = 'pubsub.';
+    var dispatch = function (e) {
       window.document.dispatchEvent(e);
-    });
+    };
+    for (var i = 0, l = parts.length; i < l; i++) {
+      message += delim + parts[i];
+      var e = utils.createEvent(message, { topic: topic, data: data });
+      utils.defer(dispatch, e);
+      delim = '.';
+    }
   };
 
   this.subscribe = function (topic, func) {
@@ -771,102 +775,12 @@ exports.createEvent = function (type, data, options) {
   return e;
 };
 
-exports.createElement = _dereq_('domify');
 exports.extend = _dereq_('lodash-node/modern/objects/assign');
 exports.extend(exports, _dereq_('./utils-ext-global'));
 exports.extend(exports, _dereq_('./utils-ext-require'));
-},{"./utils-ext-global":10,"./utils-ext-require":12,"domify":13,"lodash-node/modern/objects/assign":25}],12:[function(_dereq_,module,exports){
+},{"./utils-ext-global":10,"./utils-ext-require":12,"lodash-node/modern/objects/assign":24}],12:[function(_dereq_,module,exports){
 
 },{}],13:[function(_dereq_,module,exports){
-
-/**
- * Expose `parse`.
- */
-
-module.exports = parse;
-
-/**
- * Wrap map from jquery.
- */
-
-var map = {
-  legend: [1, '<fieldset>', '</fieldset>'],
-  tr: [2, '<table><tbody>', '</tbody></table>'],
-  col: [2, '<table><tbody></tbody><colgroup>', '</colgroup></table>'],
-  _default: [0, '', '']
-};
-
-map.td =
-map.th = [3, '<table><tbody><tr>', '</tr></tbody></table>'];
-
-map.option =
-map.optgroup = [1, '<select multiple="multiple">', '</select>'];
-
-map.thead =
-map.tbody =
-map.colgroup =
-map.caption =
-map.tfoot = [1, '<table>', '</table>'];
-
-map.text =
-map.circle =
-map.ellipse =
-map.line =
-map.path =
-map.polygon =
-map.polyline =
-map.rect = [1, '<svg xmlns="http://www.w3.org/2000/svg" version="1.1">','</svg>'];
-
-/**
- * Parse `html` and return the children.
- *
- * @param {String} html
- * @return {Array}
- * @api private
- */
-
-function parse(html) {
-  if ('string' != typeof html) throw new TypeError('String expected');
-  
-  // tag name
-  var m = /<([\w:]+)/.exec(html);
-  if (!m) return document.createTextNode(html);
-
-  html = html.replace(/^\s+|\s+$/g, ''); // Remove leading/trailing whitespace
-
-  var tag = m[1];
-
-  // body support
-  if (tag == 'body') {
-    var el = document.createElement('html');
-    el.innerHTML = html;
-    return el.removeChild(el.lastChild);
-  }
-
-  // wrap map
-  var wrap = map[tag] || map._default;
-  var depth = wrap[0];
-  var prefix = wrap[1];
-  var suffix = wrap[2];
-  var el = document.createElement('div');
-  el.innerHTML = prefix + html + suffix;
-  while (depth--) el = el.lastChild;
-
-  // one element
-  if (el.firstChild == el.lastChild) {
-    return el.removeChild(el.firstChild);
-  }
-
-  // several elements
-  var fragment = document.createDocumentFragment();
-  while (el.firstChild) {
-    fragment.appendChild(el.removeChild(el.firstChild));
-  }
-
-  return fragment;
-}
-
-},{}],14:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -908,7 +822,7 @@ function bind(func, thisArg) {
 
 module.exports = bind;
 
-},{"../internals/createWrapper":19,"../internals/slice":24}],15:[function(_dereq_,module,exports){
+},{"../internals/createWrapper":18,"../internals/slice":23}],14:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -972,7 +886,7 @@ function baseBind(bindData) {
 
 module.exports = baseBind;
 
-},{"../objects/isObject":27,"./baseCreate":16,"./setBindData":22,"./slice":24}],16:[function(_dereq_,module,exports){
+},{"../objects/isObject":26,"./baseCreate":15,"./setBindData":21,"./slice":23}],15:[function(_dereq_,module,exports){
 (function (global){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
@@ -1018,7 +932,7 @@ if (!nativeCreate) {
 module.exports = baseCreate;
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../objects/isObject":27,"../utilities/noop":31,"./isNative":20}],17:[function(_dereq_,module,exports){
+},{"../objects/isObject":26,"../utilities/noop":30,"./isNative":19}],16:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1100,7 +1014,7 @@ function baseCreateCallback(func, thisArg, argCount) {
 
 module.exports = baseCreateCallback;
 
-},{"../functions/bind":14,"../support":29,"../utilities/identity":30,"./setBindData":22}],18:[function(_dereq_,module,exports){
+},{"../functions/bind":13,"../support":28,"../utilities/identity":29,"./setBindData":21}],17:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1180,7 +1094,7 @@ function baseCreateWrapper(bindData) {
 
 module.exports = baseCreateWrapper;
 
-},{"../objects/isObject":27,"./baseCreate":16,"./setBindData":22,"./slice":24}],19:[function(_dereq_,module,exports){
+},{"../objects/isObject":26,"./baseCreate":15,"./setBindData":21,"./slice":23}],18:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1288,7 +1202,7 @@ function createWrapper(func, bitmask, partialArgs, partialRightArgs, thisArg, ar
 
 module.exports = createWrapper;
 
-},{"../objects/isFunction":26,"./baseBind":15,"./baseCreateWrapper":18,"./slice":24}],20:[function(_dereq_,module,exports){
+},{"../objects/isFunction":25,"./baseBind":14,"./baseCreateWrapper":17,"./slice":23}],19:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1324,7 +1238,7 @@ function isNative(value) {
 
 module.exports = isNative;
 
-},{}],21:[function(_dereq_,module,exports){
+},{}],20:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1346,7 +1260,7 @@ var objectTypes = {
 
 module.exports = objectTypes;
 
-},{}],22:[function(_dereq_,module,exports){
+},{}],21:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1391,7 +1305,7 @@ var setBindData = !defineProperty ? noop : function(func, value) {
 
 module.exports = setBindData;
 
-},{"../utilities/noop":31,"./isNative":20}],23:[function(_dereq_,module,exports){
+},{"../utilities/noop":30,"./isNative":19}],22:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1431,7 +1345,7 @@ var shimKeys = function(object) {
 
 module.exports = shimKeys;
 
-},{"./objectTypes":21}],24:[function(_dereq_,module,exports){
+},{"./objectTypes":20}],23:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1471,7 +1385,7 @@ function slice(array, start, end) {
 
 module.exports = slice;
 
-},{}],25:[function(_dereq_,module,exports){
+},{}],24:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1543,7 +1457,7 @@ var assign = function(object, source, guard) {
 
 module.exports = assign;
 
-},{"../internals/baseCreateCallback":17,"../internals/objectTypes":21,"./keys":28}],26:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":16,"../internals/objectTypes":20,"./keys":27}],25:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1572,7 +1486,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{}],27:[function(_dereq_,module,exports){
+},{}],26:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1613,7 +1527,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{"../internals/objectTypes":21}],28:[function(_dereq_,module,exports){
+},{"../internals/objectTypes":20}],27:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1651,7 +1565,7 @@ var keys = !nativeKeys ? shimKeys : function(object) {
 
 module.exports = keys;
 
-},{"../internals/isNative":20,"../internals/shimKeys":23,"./isObject":27}],29:[function(_dereq_,module,exports){
+},{"../internals/isNative":19,"../internals/shimKeys":22,"./isObject":26}],28:[function(_dereq_,module,exports){
 (function (global){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
@@ -1695,7 +1609,7 @@ support.funcNames = typeof Function.name == 'string';
 module.exports = support;
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./internals/isNative":20}],30:[function(_dereq_,module,exports){
+},{"./internals/isNative":19}],29:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1725,7 +1639,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],31:[function(_dereq_,module,exports){
+},{}],30:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
