@@ -1,12 +1,12 @@
 /**
- * sector v0.1.5
+ * sector v0.1.6
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-03-21T23:30:10.007Z
+ * Date: 2014-03-22T00:27:53.307Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -396,7 +396,7 @@ module.exports = function () {
   };
 
   this.stopListening = function (el, event) {
-    if (!event) {
+    if (!event && utils.isString(el)) {
       event = el;
       el = this.el;
     }
@@ -413,7 +413,6 @@ module.exports = function () {
       eid = el.getAttribute('data-sector-eid');
     }
     if (!this._listeners || !this._listeners[eid]) { return; }
-    if (event && !this._listeners[eid][event]) { return; }
     if (!event) {
       for (var ev in this._listeners[eid]) {
         this.trace && this.trace('<x> ' + el + '.' + ev);
@@ -421,6 +420,7 @@ module.exports = function () {
         delete this._listeners[eid][ev];
       }
     } else {
+      if (event && !this._listeners[eid][event]) { return; }
       this.trace && this.trace('<x> ' + el + '.' + event);
       el.removeEventListener(event, this._listeners[eid][event]);
       delete this._listeners[eid][event];
@@ -589,7 +589,6 @@ var View = function () {
 
   this.remove = function () {
     this.el.parentNode.removeChild(this.el);
-    this.destroy();
   };
 
   this.before('initialize', function () {
