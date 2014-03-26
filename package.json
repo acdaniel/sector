@@ -1,6 +1,6 @@
 {
   "name": "sector",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A component and pub/sub based UI library for javascript applications.",
   "main": "lib/index.js",
   "scripts": {
