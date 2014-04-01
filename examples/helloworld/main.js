@@ -1,20 +1,20 @@
 /* global sector, alert */
 
 sector.Component.define({
-  type: 'Alerter',
+  type: 'alerter',
   initialize: function () {
-    this.subscribe('ui.alertRequest', function (msg) {
+    this.subscribe('ui.alertRequested', function (msg) {
       alert(msg.data);
     });
   }
 });
 
 sector.Component.define({
-  type: 'HelloWorld',
+  type: 'hello-world',
   ui: { button: 'button' },
-  events: { 'button.click': 'handleClick' },
+  events: { 'button click': 'handleClick' },
   handleClick: function () {
-    this.publish('ui.alertRequest', 'Hello World :)');
+    this.publish('ui.alertRequested', 'Hello World :)');
   }
 }, sector.mixins.View);
 
