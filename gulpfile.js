@@ -25,7 +25,7 @@ gulp.task('build', function () {
   return gulp.src('lib/index.js', { read: false })
     .pipe(browserify({
       // debug: true,
-      ignore: ['./utils-ext-globals'],
+      exclude: ['./utils-ext-globals'],
       standalone: 'sector'
     }))
     .pipe(header(banner, { pkg : pkg, date: new Date().toISOString() } ))
@@ -37,7 +37,7 @@ gulp.task('build:slim', function () {
   return gulp.src('lib/index.js', { read: false })
     .pipe(browserify({
       // debug: true,
-      ignore: ['./utils-ext-require'],
+      exclude: ['./utils-ext-require'],
       standalone: 'sector'
     }))
     .pipe(header(banner, { pkg : pkg, date: new Date().toISOString() } ))

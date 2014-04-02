@@ -1,12 +1,12 @@
 /**
- * sector v0.1.7
+ * sector v0.1.8
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-03-26T19:18:42.155Z
+ * Date: 2014-04-02T01:48:30.484Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -53,7 +53,7 @@ Component.prototype.toString = function () {
   return '[' + this.type + ' ' + this.id + ']';
 };
 
-Component.prototype.defaults = {};
+Component.prototype.defaults = null;
 
 Component.prototype.initialize = utils.noop;
 
@@ -72,13 +72,13 @@ Component.define = function (properties /*, mixins... */) {
 };
 
 Component.attachTo = function (selector, options) {
-  var self = this, instance, elements;
+  var construct = this, instance, elements;
   options = options || {};
   elements = utils.isString(selector) ? utils.select(selector) : [selector];
   for (var i = 0, l = elements.length; i < l; i++) {
     options.el = elements[i];
     options.id = options.id || elements[i].id;
-    instance = new self(options);
+    instance = new construct(options);
   };
 };
 
@@ -91,152 +91,27 @@ Component.destroyAll = function () {
 };
 
 module.exports = Component;
-},{"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./registry":9,"./utils":12}],2:[function(_dereq_,module,exports){
-/*
- * inspiration and some code borrowed from
- * http://krasimirtsonev.com/blog/article/A-modern-JavaScript-router-in-100-lines-history-api-pushState-hash-url
- * and from Backbone.Router https://github.com/jashkenas/backbone
- */
-
-var Component = _dereq_('../component'),
-    utils = _dereq_('../utils');
-
-var optionalParam = /\((.*?)\)/g;
-var namedParam    = /(\(\?)?:\w+/g;
-var splatParam    = /\*\w+/g;
-var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
-
-var Router = Component.define({
-  type: 'router',
-  defaults: {
-    mode: 'history',
-    root: '/',
-    routeTopic: 'ui.routeChanged',
-    backRequestTopic: 'ui.navigateBackRequested',
-    forwardRequestTopic: 'ui.navigateForwardRequested',
-    navigateRequestTopic: 'ui.navigateRequested',
-    uiReadyTopic: 'ui.ready'
-  },
-  initialize: function (options) {
-    if (!history.pushState) { this.mode = 'hash'; }
-    if (this.root !== '/') {
-      this.root = '/' + this._clearSlashes(options.root) + '/';
-    }
-    this.routes = {};
-    if (options.routes) {
-      for (var name in options.routes) {
-        this.addRoute(name, options.routes[name]);
-      }
-    }
-    this.subscribe(this.navigateRequestTopic, this._handleNavigateRequest);
-    this.subscribe(this.backRequestTopic, this._handleBackRequest);
-    this.subscribe(this.forwardRequestTopic, this._handleForwardRequest);
-    this.listenTo(window, 'hashchange', this._handleHashChange);
-    this.subscribe(this.uiReadyTopic, function () {
-      var msg = this._parseFragment(this.getFragment());
-      this.publish(this.routeTopic, msg);
-    });
-  },
-  addRoute: function (name, route) {
-    route = route.replace(escapeRegExp, '\\$&')
-      .replace(optionalParam, '(?:$1)?')
-      .replace(namedParam, function(match, optional) {
-        return optional ? match : '([^/?]+)';
-      })
-      .replace(splatParam, '([^?]*?)');
-    var regex = new RegExp('^' + route + '(?:\\?([\\s\\S]*))?$');
-    this.trace('adding named route: ' + name, regex);
-    this.routes[name] = regex;
-  },
-  getFragment: function () {
-    var fragment = '', match;
-    if (this.mode === 'history') {
-      fragment = this._clearSlashes(decodeURI(location.pathname + location.search));
-      fragment = fragment.replace(/\?(.*)$/, '');
-      fragment = this.root !== '/' ? fragment.replace(this.root, '') : fragment;
-    } else {
-      match = window.location.href.match(/#(.*)$/);
-      fragment = match ? match[1] : '';
-    }
-    return fragment;
-  },
-  _parseFragment: function (fragment) {
-    this.trace('parsing fragment ' + fragment);
-    for (var name in this.routes) {
-      var route = this.routes[name];
-      this.trace('eval route ' + name, route);
-      var params = route.exec(fragment);
-      if (params) {
-        params = params.slice(1);
-        return {
-          name: name,
-          path: fragment,
-          params: utils.map(params, function(param, i) {
-            // Don't decode the search params.
-            if (i === params.length - 1) { return param || null; }
-            return param ? decodeURIComponent(param) : null;
-          })
-        };
-      }
-    }
-    return {};
-  },
-  _clearSlashes: function(path) {
-    return path.toString().replace(/\/$/, '').replace(/^\//, '');
-  },
-  _handleHashChange: function () {
-    var fragment, msg;
-    fragment = this.getFragment();
-    msg = this._parseFragment(fragment);
-    this.publish(this.routeTopic, msg);
-  },
-  _handleNavigateRequest: function (msg) {
-    var path = msg.data ? msg.data : '';
-    if(this.mode === 'history') {
-      history.pushState(null, null, this.root + this._clearSlashes(path));
-    } else {
-      window.location.href.match(/#(.*)$/);
-      window.location.href = window.location.href.replace(/#(.*)$/, '') + '#' + path;
-    }
-    var outMsg = this._parseFragment(path);
-    this.publish(this.routeTopic, outMsg);
-  },
-  _handleBackRequest: function () {
-    var fragment, msg;
-    window.history.back();
-    fragment = this.getFragment();
-    msg = this._parseFragment(fragment);
-    this.publish(this.routeTopic, msg);
-  },
-  _handleForwardRequest: function () {
-    var fragment, msg;
-    window.history.forward();
-    fragment = this.getFragment();
-    msg = this._parseFragment(fragment);
-    this.publish(this.routeTopic, msg);
-  }
-});
-
-module.exports = Router;
-},{"../component":1,"../utils":12}],3:[function(_dereq_,module,exports){
+},{"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./registry":10,"./utils":13}],2:[function(_dereq_,module,exports){
 
 exports.mixins = {
   Hooked: _dereq_('./mixins/hooked'),
   Traceable: _dereq_('./mixins/traceable'),
   Listener: _dereq_('./mixins/listener'),
   PubSub: _dereq_('./mixins/pubsub'),
-  View: _dereq_('./mixins/view')
+  View: _dereq_('./mixins/view'),
+  Bound: _dereq_('./mixins/bound'),
+  Validator: _dereq_('./mixins/validator')
 };
 
-exports.components = {
-  Router: _dereq_('./components/router')
-};
+exports.components = {};
+
+exports.ext = {};
 
 exports.utils = _dereq_('./utils');
 
-exports.Component = _dereq_('./component');
-
 exports.registry = _dereq_('./registry');
+
+exports.Component = _dereq_('./component');
 
 exports.init = function (func, options, root) {
   var argsLength = arguments.length;
@@ -308,9 +183,178 @@ exports.init = function (func, options, root) {
     pub(options.readyTopic, {});
   });
 };
-},{"./component":1,"./components/router":2,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/view":8,"./registry":9,"./utils":12}],4:[function(_dereq_,module,exports){
+},{"./component":1,"./mixins/bound":3,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/validator":8,"./mixins/view":9,"./registry":10,"./utils":13}],3:[function(_dereq_,module,exports){
+var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Bound () {
+
+  this.defaults = utils.defaults({}, this.defaults, {
+    data: null,
+    binding: null
+  });
+
+  var pathCache = {};
+
+  var parsePath = function (key) {
+    if (!pathCache[key]) {
+      pathCache[key] = key.split('.');
+    }
+    return pathCache[key];
+  };
+
+  var normalizeKey = function (key) {
+    var arrNotationRegex = /\[['"]?([_$a-zA-Z\xA0-\uFFFF][_$a-zA-Z0-9\xA0-\uFFFF]*)['"]?\]/g;
+    var normalizedKey = key.replace(arrNotationRegex, function (match, p1) {
+      return '.' + p1;
+    });
+    return normalizedKey;
+  };
+
+  this.update = function (obj) {
+    if (obj) {
+      this.data = obj;
+    }
+    var traverse = utils.bind(function (obj, path) {
+      var value;
+      for (var key in obj) {
+        value = obj[key];
+        var newPath = path ? path + '.' + key : key;
+        if ('object' === typeof value) {
+          traverse(value, newPath);
+        } else {
+          this.setDOMValue(newPath, value);
+        }
+      }
+    }, this);
+    traverse(this.data, '');
+  };
+
+  this.set = function (key, value) {
+    var normalizedKey = normalizeKey(key);
+    this.setDataValue(normalizedKey, value);
+    this.setDOMValue(normalizedKey, value);
+  };
+
+  this.get = function (key) {
+    var normalizedKey = normalizeKey(key);
+    var path = parsePath(normalizedKey);
+    return path.reduce(function (o, k) {
+      return o[k];
+    }, this.data);
+  };
+
+  this.bind = function () {
+    if (this.binding) {
+      utils.forIn(this.binding, function (binding, key) {
+        var nodes = !binding.selector ? [this.el] : [].slice.call(this.select(binding.selector));
+        var events = binding.events || ['change'];
+        nodes.forEach(utils.bind(function (node, index) {
+          if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
+            utils.forIn(events, function (eventName) {
+              this.listenTo(node, eventName + ':bound', function (event) {
+                var value, el = event.target;
+                if (el.type.toLowerCase() === 'checkbox' || el.type.toLowerCase() === 'radio') {
+                  value = 'undefined' === typeof el.value ? true : el.value;
+                  value = el.checked ? value : undefined;
+                } else {
+                  value = el.value;
+                }
+                this.set(key, value);
+              });
+            }, this);
+          }
+        }, this));
+      }, this);
+      this._isBound = true;
+    }
+  };
+
+  this.unbind = function () {
+    if (this.binding && this._isBound) {
+      utils.forIn(this.binding, function (binding, key) {
+        var nodes = !binding.selector ? [this.el] : [].slice.call(this.select(binding.selector));
+        var events = binding.events || ['change'];
+        nodes.forEach(utils.bind(function (node, index) {
+          if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
+            utils.forIn(events, function (eventName) {
+              this.stopListening(node, eventName + ':bound');
+            }, this);
+          }
+        }, this));
+      }, this);
+    }
+  };
+
+  this.setDOMValue = function (key, value) {
+    var binding, nodes;
+    if (utils.has(this.binding, key)) {
+      binding = this.binding[key];
+      nodes = !binding.selector ? [this.el] : [].slice.call(this.select(binding.selector));
+      // TODO format value
+      nodes.forEach(function (node, index) {
+        if (binding.property) {
+          node[binding.property] = value;
+        } else if (binding.attribute) {
+          node.setAttribute(binding.attribute, value.toString());
+        } else if (binding.html) {
+          node.innerHTML = value.toString();
+        } else if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
+          if (node.type.toLowerCase() === 'checkbox') {
+            node.checked = !!value;
+          } else if (node.type.toLowerCase() === 'radio') {
+            node.checked = node.value === value.toString();
+          } else {
+            node.value = value.toString();
+          }
+        } else {
+          node.textContent = value.toString();
+        }
+      });
+    }
+  };
+
+  this.setDataValue = function (key, value) {
+    var o = this.data, path = parsePath(key);
+    for (var i = 0, l = path.length; i < l; i++) {
+      if (i < l - 1) {
+        if (!utils.has(o, path[i])) {
+          o[path[i]] = {};
+        }
+        o = o[path[i]];
+      } else {
+        o[path[i]] = value;
+      }
+    }
+  };
+
+  if (utils.has(this, 'render')) {
+    this.around('render', function (render, data) {
+      this.unbind();
+      render.call(this, data);
+      this.bind();
+      this.update(data);
+    });
+  }
+
+  this.before('initialize', function (options) {
+    this.data = this.data || options.data || {};
+    if (this.binding) {
+      var normalizedBinding = {};
+      utils.forIn(this.binding, function (binding, key) {
+        var normalizedKey = normalizeKey(key);
+        normalizedBinding[normalizedKey] = utils.isString(binding) ? { selector: binding } : binding;
+      });
+      this.binding = normalizedBinding;
+    }
+    this.bind();
+    this.update();
+  });
+};
+
+},{"../utils":13}],4:[function(_dereq_,module,exports){
+var utils = _dereq_('../utils');
+
+module.exports = function Hooked () {
   this.after = function (method, afterFunc) {
     var oFunc = this[method];
     this[method] = function composedFunc () {
@@ -329,13 +373,14 @@ module.exports = function () {
 
   this.around = function (method, wrapFunc) {
     var oFunc = this[method];
+    utils.bind(oFunc, this);
     this[method] = utils.wrap(oFunc, wrapFunc);
   };
 };
-},{}],5:[function(_dereq_,module,exports){
+},{"../utils":13}],5:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Listener () {
 
   this.listenTo = function (el, event, func) {
     if (!func) {
@@ -346,6 +391,8 @@ module.exports = function () {
     if (utils.isString(el)) {
       el = this.select(el);
     }
+    var eventParts = event.split(':', 2);
+    var eventName = eventParts[0], eventNamespace = eventParts[1] || '_';
     func = utils.isString(func) ? this[func] : func;
     this._listeners = this._listeners || {};
     var removedListener = function (event) {
@@ -366,7 +413,7 @@ module.exports = function () {
         this.stopListening(el);
       }
     };
-    var createListener = function (event) {
+    var listener = function (event) {
       this.trace && this.trace('<- ' + event.target + '.' + event.type);
       func.apply(this, arguments);
     };
@@ -388,12 +435,16 @@ module.exports = function () {
       this._listeners[eid].DOMNodeRemoved = utils.bind(removedListener, this);
       el.addEventListener('DOMNodeRemoved', this._listeners[eid].DOMNodeRemoved, false);
     }
-    if (this._listeners[eid][event]) {
-      el.removeEventListener(event, this._listeners[eid][event], false);
+    if (!this._listeners[eid][eventNamespace]) {
+      this._listeners[eid][eventNamespace] = {};
     }
-    this._listeners[eid][event] = utils.bind(createListener, this);
-    this.trace && this.trace('<+> ' + el + '.' + event);
-    el.addEventListener(event, this._listeners[eid][event], false);
+    if (this._listeners[eid][eventNamespace][eventName]) {
+      this.trace && this.trace('<x> ' + el + '.' + eventName + ':' + eventNamespace);
+      el.removeEventListener(eventName, this._listeners[eid][eventNamespace][eventName], false);
+    }
+    this._listeners[eid][eventNamespace][eventName] = utils.bind(listener, this);
+    this.trace && this.trace('<+> ' + el + '.' + eventName + ':' + eventNamespace);
+    el.addEventListener(eventName, this._listeners[eid][eventNamespace][eventName], false);
   };
 
   this.stopListening = function (el, event) {
@@ -405,7 +456,7 @@ module.exports = function () {
       el = this.select(el);
     }
     if (!el) { return; }
-    var eid;
+    var eid, en, ev;
     if (el === window) {
       eid = 'window';
     } else if (el === window.document) {
@@ -415,16 +466,40 @@ module.exports = function () {
     }
     if (!this._listeners || !this._listeners[eid]) { return; }
     if (!event) {
-      for (var ev in this._listeners[eid]) {
-        this.trace && this.trace('<x> ' + el + '.' + ev);
-        el.removeEventListener(ev, this._listeners[eid][ev]);
-        delete this._listeners[eid][ev];
+      for (en in this._listeners[eid]) {
+        for (ev in this._listeners[eid][en]) {
+          this.trace && this.trace('<x> ' + el + '.' + ev + ':' + en);
+          el.removeEventListener(ev, this._listeners[eid][en][ev]);
+          delete this._listeners[eid][en][ev];
+        }
+        delete this._listeners[eid][en];
       }
     } else {
-      if (event && !this._listeners[eid][event]) { return; }
-      this.trace && this.trace('<x> ' + el + '.' + event);
-      el.removeEventListener(event, this._listeners[eid][event]);
-      delete this._listeners[eid][event];
+      var eventParts = event.split(':', 2);
+      var eventName = eventParts[0] || '*', eventNamespace = eventParts[1] || '*';
+      if (eventNamespace === '*') {
+        for (en in this._listeners[eid]) {
+          for (ev in this._listeners[eid][en]) {
+            if (ev === eventName) {
+              this.trace && this.trace('<x> ' + el + '.' + ev);
+              el.removeEventListener(ev, this._listeners[eid][en][ev]);
+              delete this._listeners[eid][en][ev];
+            }
+          }
+        }
+      } else {
+        if (event && !this._listeners[eid][eventNamespace]) { return; }
+        for (ev in this._listeners[eid][eventNamespace]) {
+          if (eventName === '*' || ev === eventName) {
+            this.trace && this.trace('<x> ' + el + '.' + ev);
+            el.removeEventListener(ev, this._listeners[eid][eventNamespace][ev]);
+            delete this._listeners[eid][eventNamespace][ev];
+          }
+        }
+        if (this._listeners[eid][eventNamespace].length === 0) {
+          delete this._listeners[eid][eventNamespace];
+        }
+      }
     }
     if (this._listeners[eid].length === 0) {
       delete this._listeners[eid];
@@ -445,10 +520,10 @@ module.exports = function () {
     }
   });
 };
-},{"../utils":12}],6:[function(_dereq_,module,exports){
+},{"../utils":13}],6:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function PubSub () {
 
   this.publish = function (topic, data) {
     this.trace && this.trace('=>> ' + topic , data);
@@ -478,12 +553,13 @@ module.exports = function () {
     this.stopListening(window.document, 'pubsub.' + topic);
   };
 };
-},{"../utils":12}],7:[function(_dereq_,module,exports){
+},{"../utils":13}],7:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Traceable() {
   if (!console) { return; }
-  utils.defaults(this.defaults, {debug: false});
+
+  this.defaults = utils.defaults({}, this.defaults, { debug: false });
 
   this.trace = function (message, data) {
     if (this.debug) {
@@ -499,17 +575,308 @@ module.exports = function () {
     this.trace('destroyed');
   });
 };
-},{"../utils":12}],8:[function(_dereq_,module,exports){
+},{"../utils":13}],8:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-var View = function () {
+module.exports = function Validator () {
+
+  this.defaults = utils.defaults({}, this.defaults, {
+    validation: null,
+    invalidClassName: 'invalid',
+    validityMessages: {
+      required: 'Please enter a value for this field',
+      min: 'Value must be greater than or equal to {0}',
+      max: 'Value must be less than or equal to {0}',
+      step: 'Value must be in increments of {0}',
+      range: 'Value must be between {0} and {1}',
+      length: 'Value must have a length of {0}',
+      minlength: 'Value must be at least {0} characters long',
+      maxlength: 'Value cannot be more that {0} characters long',
+      rangelength: 'Value must be between {0} and {1} characters long',
+      pattern: 'Please match the requested format',
+      email: 'Please enter a valid email',
+      url: 'Please enter a valid URL',
+      numeric: 'Value must be numeric',
+      alphanumeric: 'Value must contain letters and numbers only',
+      alpha: 'Value must contain letters only'
+    }
+  });
+
+  this.checkValidity = function (name) {
+    var retVal = true;
+    if (this.validation) {
+      if (name) {
+        return this.checkFieldValidity(name, this.validation[name]);
+      } else {
+        for (name in this.validation) {
+          retVal = this.checkFieldValidity(name, this.validation[name]) && retVal;
+        }
+      }
+    }
+    return retVal;
+  };
+
+  this.checkFieldValidity = function (name, options) {
+    var retVal = true, radios = [], radioValue, rule, node, nodes = this.select('[name="' + name +'"]');
+    options = options || (this.validation ? this.validation[name] : {});
+
+    if (nodes.length === 0) { return true; }
+
+    var validate = utils.bind(function (rule, field, value, options) {
+      if (rule === 'custom') {
+        if (utils.isFunction(options)) {
+          return options.call(this, node, value);
+        } else {
+          return this[options].call(this, node, value);
+        }
+      } else {
+        return validators[rule].call(this, node, value, options);
+      }
+    }, this);
+
+    for (var i = 0, l = nodes.length; i< l; i++) {
+      node = nodes[i];
+      utils.removeClassName(node, 'invalid');
+      if (node.type === 'radio') {
+        radios.push(node);
+        radioValue = node.checked ? node.value : null;
+      } else {
+        for (rule in options) {
+          if (validate(rule, node, node.value, options[rule])) {
+            retVal = true && retVal;
+          } else {
+            retVal = false;
+            break;
+          }
+        }
+      }
+    }
+
+    if (radios.length > 0) {
+      for (rule in options) {
+        if (validate(rule, radios, radioValue, options[rule])) {
+          retVal = true && retVal;
+        } else {
+          retVal = false;
+          break;
+        }
+      }
+    }
+
+    if (retVal) {
+      this.setValidity(nodes, true);
+    }
+
+    return retVal;
+  };
+
+  this.setValidity = function (field, msg, rule, options) {
+    var nodes, node, e, retVal;
+    if (utils.isString(field)) {
+      nodes = [].slice.call(this.select('[name="' + field + '"]'));
+    } else if (utils.isElement(field)) {
+      nodes = nodes = [field];
+    } else if (utils.isArray(field)) {
+      nodes = field;
+    } else {
+      nodes = [].slice.call(field);
+    }
+    for (var i = 0, l = nodes.length; i < l; i++) {
+      node = nodes[i];
+      if (msg === true) {
+        utils.removeClassName(node, 'invalid');
+        utils.addClassName(node, 'valid');
+        e = utils.createEvent('valid');
+        retVal = true;
+      } else {
+        utils.addClassName(node, 'invalid');
+        e = utils.createEvent('invalid', { message: msg, rule: rule, options: options });
+        retVal = false;
+      }
+      node.dispatchEvent(e);
+    }
+    return retVal;
+  };
+
+  this.formatValidityMessage = function (msg, args) {
+    args = !utils.isArray(args) ? [args] : args;
+    return msg.replace(/{{([0-9]+)}}/g, function (str, p1) {
+      return args[p1];
+    });
+  };
+};
+
+var validators = {
+  required: function (field, value, options) {
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.required;
+    if (options && ('undefined' === typeof value || value === null || utils.isEmpty(value))) {
+      return this.setValidity(field, msg, 'required');
+    }
+    return true;
+  },
+  min: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = { min: options };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.min;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && value < options.min) {
+      return this.setValidity(field, this.formatValidityMessage(msg, options.min), 'min');
+    }
+    return true;
+  },
+  max: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = { max: options };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.max;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && value > options.max) {
+      return this.setValidity(field, this.formatValidityMessage(msg, options.max), 'max');
+    }
+    return true;
+  },
+  step: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = { step: options };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.step;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && (value % options.step !== 0)) {
+      return this.setValidity(field, this.formatValidityMessage(msg, options.step), 'range');
+    }
+    return true;
+  },
+  range: function (field, value, options) {
+    if (utils.isArray(options)) {
+      options = { min: options[0], max: options[1] };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.range;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && (value < options.min || value > options.max)) {
+      return this.setValidity(field, this.formatValidityMessage(msg, [options.min, options.max]), 'range');
+    }
+    return true;
+  },
+  length: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = { length: options };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.length;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && value.length !== options.length) {
+      return this.setValidity(field, this.formatValidityMessage(msg, options.length), 'length');
+    }
+    return true;
+  },
+  minlength: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = { minlength: options };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.minlength;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && value.length < options.minlength) {
+      return this.setValidity(field, this.formatValidityMessage(msg, options.minlength), 'minlength');
+    }
+    return true;
+  },
+  maxlength: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = { maxlength: options };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.maxlength;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && value.length > options.maxlength) {
+      return this.setValidity(field, this.formatValidityMessage(msg, options.maxlength), 'maxlength');
+    }
+    return true;
+  },
+  rangelength: function (field, value, options) {
+    if (utils.isArray(options)) {
+      options = { min: options[0], max: options[1] };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.rangelength;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && (value.length < options.min || value.length > options.max)) {
+      return this.setValidity(field, this.formatValidityMessage(msg, [options.min, options.max]), 'rangelength');
+    }
+    return true;
+  },
+  pattern: function (field, value, options) {
+    if (utils.isString(options)) {
+      options = { pattern: new RegExp(options) };
+    } else if (options instanceof RegExp) {
+      options = { pattern: options };
+    }
+    options.pattern = options.pattern instanceof RegExp ? options.pattern : new RegExp(options.pattern);
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.pattern;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && !options.pattern.test(value)) {
+      return this.setValidity(field, this.formatValidityMessage(msg), 'pattern');
+    }
+    return true;
+  },
+  url: function (field, value, options) {
+    if ('object' !== typeof options) {
+      options = {
+        schemes: ['http', 'https', 'ftp'],
+        requireTld: true,
+        requireScheme: false
+      };
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.url;
+    var regex = new RegExp('^(?!mailto:)(?:(?:' + options.schemes.join('|') + ')://)' + (options.requireScheme ? '' : '?') + '(?:\\S+(?::\\S*)?@)?(?:(?:(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[0-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)(?:\\.(?:[a-z\\u00a1-\\uffff0-9]+-?)*[a-z\\u00a1-\\uffff0-9]+)*(?:\\.(?:[a-z\\u00a1-\\uffff]{2,}))' + (options.requireTld ? '' : '?') + ')|localhost)(?::\\d{2,5})?(?:(/|\\?|#)[^\\s]*)?$', 'i');
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && (value.length > 2083 || !regex.test(value))) {
+      return this.setValidity(field, this.formatValidityMessage(msg), 'url');
+    }
+    return true;
+  },
+  email: function (field, value, options) {
+    var regex = /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$/i;
+    if ('object' !== typeof options) {
+      options = {};
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.email;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && !regex.test(value)) {
+      return this.setValidity(field, this.formatValidityMessage(msg), 'email');
+    }
+    return true;
+  },
+  numeric: function (field, value, options) {
+    var regex = /^-?[0-9]+$/;
+    if ('object' !== typeof options) {
+      options = {};
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.numeric;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && !regex.test(value)) {
+      return this.setValidity(field, this.formatValidityMessage(msg), 'numeric');
+    }
+    return true;
+  },
+  alphanumeric: function (field, value, options) {
+    var regex = /^[a-zA-Z0-9]+$/;
+    if ('object' !== typeof options) {
+      options = {};
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.alphanumeric;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && !regex.test(value)) {
+      return this.setValidity(field, this.formatValidityMessage(msg), 'alphanumeric');
+    }
+    return true;
+  },
+  alpha: function (field, value, options) {
+    var regex = /^[a-zA-Z]+$/;
+    if ('object' !== typeof options) {
+      options = {};
+    }
+    var msg = utils.has(options, 'message') ? options.message : this.validityMessages.alpha;
+    if ('undefined' !== typeof value && value !== null && !utils.isEmpty(value) && !regex.test(value)) {
+      return this.setValidity(field, this.formatValidityMessage(msg), 'alpha');
+    }
+    return true;
+  }
+};
+},{"../utils":13}],9:[function(_dereq_,module,exports){
+var utils = _dereq_('../utils');
+
+var View = function View () {
   var _templateCache = {};
 
-  this.bindUI = function () {
+  this.setupUI = function () {
     if (this.ui) {
       this._ui || ( this._ui = this.ui);
-      var binding = utils.result(this,'_ui');
-      this.trace('binding UI', binding);
+      var binding = utils.result(this, '_ui');
       this.ui = {};
       utils.forIn(binding, function (selector, key) {
         this.ui[key] = this.select(selector, true);
@@ -517,22 +884,20 @@ var View = function () {
     }
   };
 
-  this.unbindUI = function () {
+  this.teardownUI = function () {
     if (this.ui) {
       this._ui || ( this._ui = this.ui);
-      var binding = utils.result(this,'_ui');
-      this.trace('unbinding UI', binding);
+      var binding = utils.result(this, '_ui');
       utils.forIn(binding, function (selector, key) {
         delete this.ui[key];
       }, this);
     }
   };
 
-  this.bindEvents = function () {
+  this.setupEvents = function () {
     if (this.events) {
-      this.trace('binding events', this.events);
       utils.forIn(this.events, function (func, event) {
-        var el, type, parts = event.split('.', 2);
+        var el, type, parts = event.split(/[. ]+/, 2);
         if (parts.length === 1) {
           el = this.el;
           type = parts[0];
@@ -545,11 +910,10 @@ var View = function () {
     }
   };
 
-  this.unbindEvents = function () {
+  this.teardownEvents = function () {
     if (this.events) {
-      this.trace('unbinding events', this.events);
       utils.forIn(this.events, function (func, event) {
-        var el, type, parts = event.split('.', 2);
+        var el, type, parts = event.split(/[. ]+/, 2);
         if (parts.length === 1) {
           el = this.el;
           type = parts[0];
@@ -566,15 +930,17 @@ var View = function () {
     this.render = function (data) {
       var html = '', el, source = '';
       if (this.template) {
-        this.unbindEvents();
-        this.unbindUI();
+        if (this._isRendered) {
+          this.teardownEvents();
+          this.teardownUI();
+        }
         if (utils.isFunction(this.template)) {
           html = this.template(data);
         } else {
           if (utils.has(_templateCache, this.template)) {
             source = _templateCache[this.template];
           } else {
-            el = utils.selectOne(this.template);
+            el = window.document.querySelector(this.template);
             if (!el) { throw Error('template ' + this.template + ' not found'); }
             source = el.innerHTML;
             _templateCache[this.template] = source;
@@ -582,8 +948,9 @@ var View = function () {
           html = utils.template(source, data || {});
         }
         this.el.innerHTML = html;
-        this.bindUI();
-        this.bindEvents();
+        this.setupUI();
+        this.setupEvents();
+        this._isRendered = true;
       }
     };
   }
@@ -593,13 +960,15 @@ var View = function () {
   };
 
   this.before('initialize', function () {
-    this.bindUI();
-    this.bindEvents();
+    if (this.el.children.length > 0) {
+      this.setupUI();
+      this.setupEvents();
+    }
   });
 };
 
 module.exports = View;
-},{"../utils":12}],9:[function(_dereq_,module,exports){
+},{"../utils":13}],10:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils');
 
 var Registry = function () {
@@ -662,16 +1031,19 @@ Registry.prototype.removeInstancesOf = function (component) {
 };
 
 module.exports = new Registry();
-},{"./utils":12}],10:[function(_dereq_,module,exports){
+},{"./utils":13}],11:[function(_dereq_,module,exports){
 /* global _ */
 if ('undefined' !== typeof _) {
   exports.omit = _.omit;
   exports.pick = _.pick;
   exports.has = _.has;
   exports.defaults = _.defaults;
+  exports.clone = _.clone;
+  exports.isEmpty = _.isEmpty;
   exports.isString = _.isString;
   exports.isArray = _.isArray;
   exports.isFunction = _.isFunction;
+  exports.isElement = _.isElement;
   exports.forIn = _.forIn;
   exports.values = _.values;
   exports.create = _.create;
@@ -686,14 +1058,17 @@ if ('undefined' !== typeof _) {
   exports.forEach = _.forEach;
   exports.map = _.map;
 }
-},{}],11:[function(_dereq_,module,exports){
+},{}],12:[function(_dereq_,module,exports){
 exports.omit = _dereq_('lodash-node/modern/objects/omit');
 exports.pick = _dereq_('lodash-node/modern/objects/pick');
 exports.has = _dereq_('lodash-node/modern/objects/has');
 exports.defaults = _dereq_('lodash-node/modern/objects/defaults');
+exports.clone = _dereq_('lodash-node/modern/objects/clone');
+exports.isEmpty = _dereq_('lodash-node/modern/objects/isEmpty');
 exports.isString = _dereq_('lodash-node/modern/objects/isString');
 exports.isArray = _dereq_('lodash-node/modern/objects/isArray');
 exports.isFunction = _dereq_('lodash-node/modern/objects/isFunction');
+exports.isElement = _dereq_('lodash-node/modern/objects/isElement');
 exports.forIn = _dereq_('lodash-node/modern/objects/forIn');
 exports.values = _dereq_('lodash-node/modern/objects/values');
 exports.create = _dereq_('lodash-node/modern/objects/create');
@@ -707,7 +1082,7 @@ exports.bindAll = _dereq_('lodash-node/modern/functions/bindAll');
 exports.defer = _dereq_('lodash-node/modern/functions/defer');
 exports.forEach = _dereq_('lodash-node/modern/collections/forEach');
 exports.map = _dereq_('lodash-node/modern/collections/map');
-},{"lodash-node/modern/collections/forEach":13,"lodash-node/modern/collections/map":14,"lodash-node/modern/functions/bind":15,"lodash-node/modern/functions/bindAll":16,"lodash-node/modern/functions/defer":18,"lodash-node/modern/functions/wrap":19,"lodash-node/modern/objects/create":52,"lodash-node/modern/objects/defaults":53,"lodash-node/modern/objects/forIn":54,"lodash-node/modern/objects/has":57,"lodash-node/modern/objects/isArray":59,"lodash-node/modern/objects/isFunction":60,"lodash-node/modern/objects/isString":62,"lodash-node/modern/objects/omit":64,"lodash-node/modern/objects/pick":65,"lodash-node/modern/objects/values":66,"lodash-node/modern/utilities/noop":70,"lodash-node/modern/utilities/result":72,"lodash-node/modern/utilities/template":73,"lodash-node/modern/utilities/uniqueId":75}],12:[function(_dereq_,module,exports){
+},{"lodash-node/modern/collections/forEach":14,"lodash-node/modern/collections/map":15,"lodash-node/modern/functions/bind":16,"lodash-node/modern/functions/bindAll":17,"lodash-node/modern/functions/defer":19,"lodash-node/modern/functions/wrap":20,"lodash-node/modern/objects/clone":54,"lodash-node/modern/objects/create":55,"lodash-node/modern/objects/defaults":56,"lodash-node/modern/objects/forIn":57,"lodash-node/modern/objects/has":60,"lodash-node/modern/objects/isArray":62,"lodash-node/modern/objects/isElement":63,"lodash-node/modern/objects/isEmpty":64,"lodash-node/modern/objects/isFunction":65,"lodash-node/modern/objects/isString":67,"lodash-node/modern/objects/omit":69,"lodash-node/modern/objects/pick":70,"lodash-node/modern/objects/values":71,"lodash-node/modern/utilities/noop":75,"lodash-node/modern/utilities/result":77,"lodash-node/modern/utilities/template":78,"lodash-node/modern/utilities/uniqueId":80}],13:[function(_dereq_,module,exports){
 
 exports.define = function (properties /*, mixins... */) {
   var child, mixins = [], parent = this;
@@ -764,10 +1139,6 @@ exports.select = function (el, selector, one) {
   return one ? el.querySelector(selector) : el.querySelectorAll(selector);
 };
 
-exports.selectOne = function (el, selector) {
-  return exports.select(el, selector, true);
-};
-
 exports.matches = function(el, selector) {
   // borrowed from http://youmightnotneedjquery.com/
   var _matches = (el.matches || el.matchesSelector || el.msMatchesSelector || el.mozMatchesSelector || el.webkitMatchesSelector || el.oMatchesSelector);
@@ -779,6 +1150,21 @@ exports.matches = function(el, selector) {
       if (nodes[i] === el) { return true; }
     }
     return false;
+  }
+};
+
+exports.addClassName = function (el, className) {
+  var regex = new RegExp('(^|\\s)' + className + '(\\s|$)');
+  if (!regex.test(el.className)) {
+    el.className = (el.className + ' ' + className).trim();
+  }
+};
+
+exports.removeClassName = function (el, className) {
+  var regex, classes = className.split(' ');
+  for (var i = 0, l = classes.length; i < l; i++) {
+    regex = new RegExp('(^|\\s)' + className + '(\\s|$)');
+    el.className = el.className.replace(regex, ' ').trim();
   }
 };
 
@@ -799,7 +1185,7 @@ exports.createEvent = function (type, data, options) {
 exports.extend = _dereq_('lodash-node/modern/objects/assign');
 exports.extend(exports, _dereq_('./utils-ext-global'));
 exports.extend(exports, _dereq_('./utils-ext-require'));
-},{"./utils-ext-global":10,"./utils-ext-require":11,"lodash-node/modern/objects/assign":51}],13:[function(_dereq_,module,exports){
+},{"./utils-ext-global":11,"./utils-ext-require":12,"lodash-node/modern/objects/assign":53}],14:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -856,7 +1242,7 @@ function forEach(collection, callback, thisArg) {
 
 module.exports = forEach;
 
-},{"../internals/baseCreateCallback":23,"../objects/forOwn":55}],14:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":25,"../objects/forOwn":58}],15:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -928,7 +1314,7 @@ function map(collection, callback, thisArg) {
 
 module.exports = map;
 
-},{"../functions/createCallback":17,"../objects/forOwn":55}],15:[function(_dereq_,module,exports){
+},{"../functions/createCallback":18,"../objects/forOwn":58}],16:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -970,7 +1356,7 @@ function bind(func, thisArg) {
 
 module.exports = bind;
 
-},{"../internals/createWrapper":32,"../internals/slice":50}],16:[function(_dereq_,module,exports){
+},{"../internals/createWrapper":34,"../internals/slice":52}],17:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1021,7 +1407,7 @@ function bindAll(object) {
 
 module.exports = bindAll;
 
-},{"../internals/baseFlatten":26,"../internals/createWrapper":32,"../objects/functions":56}],17:[function(_dereq_,module,exports){
+},{"../internals/baseFlatten":28,"../internals/createWrapper":34,"../objects/functions":59}],18:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1104,7 +1490,7 @@ function createCallback(func, thisArg, argCount) {
 
 module.exports = createCallback;
 
-},{"../internals/baseCreateCallback":23,"../internals/baseIsEqual":28,"../objects/isObject":61,"../objects/keys":63,"../utilities/property":71}],18:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":25,"../internals/baseIsEqual":30,"../objects/isObject":66,"../objects/keys":68,"../utilities/property":76}],19:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1141,7 +1527,7 @@ function defer(func) {
 
 module.exports = defer;
 
-},{"../internals/slice":50,"../objects/isFunction":60}],19:[function(_dereq_,module,exports){
+},{"../internals/slice":52,"../objects/isFunction":65}],20:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1179,7 +1565,7 @@ function wrap(value, wrapper) {
 
 module.exports = wrap;
 
-},{"../internals/createWrapper":32}],20:[function(_dereq_,module,exports){
+},{"../internals/createWrapper":34}],21:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1194,7 +1580,7 @@ var arrayPool = [];
 
 module.exports = arrayPool;
 
-},{}],21:[function(_dereq_,module,exports){
+},{}],22:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1258,7 +1644,161 @@ function baseBind(bindData) {
 
 module.exports = baseBind;
 
-},{"../objects/isObject":61,"./baseCreate":22,"./setBindData":48,"./slice":50}],22:[function(_dereq_,module,exports){
+},{"../objects/isObject":66,"./baseCreate":24,"./setBindData":50,"./slice":52}],23:[function(_dereq_,module,exports){
+/**
+ * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
+ * Build: `lodash modularize modern exports="node" -o ./modern/`
+ * Copyright 2012-2013 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.5.2 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <http://lodash.com/license>
+ */
+var assign = _dereq_('../objects/assign'),
+    forEach = _dereq_('../collections/forEach'),
+    forOwn = _dereq_('../objects/forOwn'),
+    getArray = _dereq_('./getArray'),
+    isArray = _dereq_('../objects/isArray'),
+    isObject = _dereq_('../objects/isObject'),
+    releaseArray = _dereq_('./releaseArray'),
+    slice = _dereq_('./slice');
+
+/** Used to match regexp flags from their coerced string values */
+var reFlags = /\w*$/;
+
+/** `Object#toString` result shortcuts */
+var argsClass = '[object Arguments]',
+    arrayClass = '[object Array]',
+    boolClass = '[object Boolean]',
+    dateClass = '[object Date]',
+    funcClass = '[object Function]',
+    numberClass = '[object Number]',
+    objectClass = '[object Object]',
+    regexpClass = '[object RegExp]',
+    stringClass = '[object String]';
+
+/** Used to identify object classifications that `_.clone` supports */
+var cloneableClasses = {};
+cloneableClasses[funcClass] = false;
+cloneableClasses[argsClass] = cloneableClasses[arrayClass] =
+cloneableClasses[boolClass] = cloneableClasses[dateClass] =
+cloneableClasses[numberClass] = cloneableClasses[objectClass] =
+cloneableClasses[regexpClass] = cloneableClasses[stringClass] = true;
+
+/** Used for native method references */
+var objectProto = Object.prototype;
+
+/** Used to resolve the internal [[Class]] of values */
+var toString = objectProto.toString;
+
+/** Native method shortcuts */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/** Used to lookup a built-in constructor by [[Class]] */
+var ctorByClass = {};
+ctorByClass[arrayClass] = Array;
+ctorByClass[boolClass] = Boolean;
+ctorByClass[dateClass] = Date;
+ctorByClass[funcClass] = Function;
+ctorByClass[objectClass] = Object;
+ctorByClass[numberClass] = Number;
+ctorByClass[regexpClass] = RegExp;
+ctorByClass[stringClass] = String;
+
+/**
+ * The base implementation of `_.clone` without argument juggling or support
+ * for `thisArg` binding.
+ *
+ * @private
+ * @param {*} value The value to clone.
+ * @param {boolean} [isDeep=false] Specify a deep clone.
+ * @param {Function} [callback] The function to customize cloning values.
+ * @param {Array} [stackA=[]] Tracks traversed source objects.
+ * @param {Array} [stackB=[]] Associates clones with source counterparts.
+ * @returns {*} Returns the cloned value.
+ */
+function baseClone(value, isDeep, callback, stackA, stackB) {
+  if (callback) {
+    var result = callback(value);
+    if (typeof result != 'undefined') {
+      return result;
+    }
+  }
+  // inspect [[Class]]
+  var isObj = isObject(value);
+  if (isObj) {
+    var className = toString.call(value);
+    if (!cloneableClasses[className]) {
+      return value;
+    }
+    var ctor = ctorByClass[className];
+    switch (className) {
+      case boolClass:
+      case dateClass:
+        return new ctor(+value);
+
+      case numberClass:
+      case stringClass:
+        return new ctor(value);
+
+      case regexpClass:
+        result = ctor(value.source, reFlags.exec(value));
+        result.lastIndex = value.lastIndex;
+        return result;
+    }
+  } else {
+    return value;
+  }
+  var isArr = isArray(value);
+  if (isDeep) {
+    // check for circular references and return corresponding clone
+    var initedStack = !stackA;
+    stackA || (stackA = getArray());
+    stackB || (stackB = getArray());
+
+    var length = stackA.length;
+    while (length--) {
+      if (stackA[length] == value) {
+        return stackB[length];
+      }
+    }
+    result = isArr ? ctor(value.length) : {};
+  }
+  else {
+    result = isArr ? slice(value) : assign({}, value);
+  }
+  // add array properties assigned by `RegExp#exec`
+  if (isArr) {
+    if (hasOwnProperty.call(value, 'index')) {
+      result.index = value.index;
+    }
+    if (hasOwnProperty.call(value, 'input')) {
+      result.input = value.input;
+    }
+  }
+  // exit for shallow clone
+  if (!isDeep) {
+    return result;
+  }
+  // add the source value to the stack of traversed objects
+  // and associate it with its clone
+  stackA.push(value);
+  stackB.push(result);
+
+  // recursively populate clone (susceptible to call stack limits)
+  (isArr ? forEach : forOwn)(value, function(objValue, key) {
+    result[key] = baseClone(objValue, isDeep, callback, stackA, stackB);
+  });
+
+  if (initedStack) {
+    releaseArray(stackA);
+    releaseArray(stackB);
+  }
+  return result;
+}
+
+module.exports = baseClone;
+
+},{"../collections/forEach":14,"../objects/assign":53,"../objects/forOwn":58,"../objects/isArray":62,"../objects/isObject":66,"./getArray":37,"./releaseArray":48,"./slice":52}],24:[function(_dereq_,module,exports){
 (function (global){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
@@ -1304,7 +1844,7 @@ if (!nativeCreate) {
 module.exports = baseCreate;
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../objects/isObject":61,"../utilities/noop":70,"./isNative":38}],23:[function(_dereq_,module,exports){
+},{"../objects/isObject":66,"../utilities/noop":75,"./isNative":40}],25:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1386,7 +1926,7 @@ function baseCreateCallback(func, thisArg, argCount) {
 
 module.exports = baseCreateCallback;
 
-},{"../functions/bind":15,"../support":67,"../utilities/identity":69,"./setBindData":48}],24:[function(_dereq_,module,exports){
+},{"../functions/bind":16,"../support":72,"../utilities/identity":74,"./setBindData":50}],26:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1466,7 +2006,7 @@ function baseCreateWrapper(bindData) {
 
 module.exports = baseCreateWrapper;
 
-},{"../objects/isObject":61,"./baseCreate":22,"./setBindData":48,"./slice":50}],25:[function(_dereq_,module,exports){
+},{"../objects/isObject":66,"./baseCreate":24,"./setBindData":50,"./slice":52}],27:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1520,7 +2060,7 @@ function baseDifference(array, values) {
 
 module.exports = baseDifference;
 
-},{"./baseIndexOf":27,"./cacheIndexOf":29,"./createCache":31,"./largeArraySize":40,"./releaseObject":47}],26:[function(_dereq_,module,exports){
+},{"./baseIndexOf":29,"./cacheIndexOf":31,"./createCache":33,"./largeArraySize":42,"./releaseObject":49}],28:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1574,7 +2114,7 @@ function baseFlatten(array, isShallow, isStrict, fromIndex) {
 
 module.exports = baseFlatten;
 
-},{"../objects/isArguments":58,"../objects/isArray":59}],27:[function(_dereq_,module,exports){
+},{"../objects/isArguments":61,"../objects/isArray":62}],29:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1608,7 +2148,7 @@ function baseIndexOf(array, value, fromIndex) {
 
 module.exports = baseIndexOf;
 
-},{}],28:[function(_dereq_,module,exports){
+},{}],30:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1819,7 +2359,7 @@ function baseIsEqual(a, b, callback, isWhere, stackA, stackB) {
 
 module.exports = baseIsEqual;
 
-},{"../objects/forIn":54,"../objects/isFunction":60,"./getArray":35,"./objectTypes":43,"./releaseArray":46}],29:[function(_dereq_,module,exports){
+},{"../objects/forIn":57,"../objects/isFunction":65,"./getArray":37,"./objectTypes":45,"./releaseArray":48}],31:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1860,7 +2400,7 @@ function cacheIndexOf(cache, value) {
 
 module.exports = cacheIndexOf;
 
-},{"./baseIndexOf":27,"./keyPrefix":39}],30:[function(_dereq_,module,exports){
+},{"./baseIndexOf":29,"./keyPrefix":41}],32:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1900,7 +2440,7 @@ function cachePush(value) {
 
 module.exports = cachePush;
 
-},{"./keyPrefix":39}],31:[function(_dereq_,module,exports){
+},{"./keyPrefix":41}],33:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1947,7 +2487,7 @@ function createCache(array) {
 
 module.exports = createCache;
 
-},{"./cachePush":30,"./getObject":36,"./releaseObject":47}],32:[function(_dereq_,module,exports){
+},{"./cachePush":32,"./getObject":38,"./releaseObject":49}],34:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2055,7 +2595,7 @@ function createWrapper(func, bitmask, partialArgs, partialRightArgs, thisArg, ar
 
 module.exports = createWrapper;
 
-},{"../objects/isFunction":60,"./baseBind":21,"./baseCreateWrapper":24,"./slice":50}],33:[function(_dereq_,module,exports){
+},{"../objects/isFunction":65,"./baseBind":22,"./baseCreateWrapper":26,"./slice":52}],35:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2079,7 +2619,7 @@ function escapeHtmlChar(match) {
 
 module.exports = escapeHtmlChar;
 
-},{"./htmlEscapes":37}],34:[function(_dereq_,module,exports){
+},{"./htmlEscapes":39}],36:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2114,7 +2654,7 @@ function escapeStringChar(match) {
 
 module.exports = escapeStringChar;
 
-},{}],35:[function(_dereq_,module,exports){
+},{}],37:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2137,7 +2677,7 @@ function getArray() {
 
 module.exports = getArray;
 
-},{"./arrayPool":20}],36:[function(_dereq_,module,exports){
+},{"./arrayPool":21}],38:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2174,7 +2714,7 @@ function getObject() {
 
 module.exports = getObject;
 
-},{"./objectPool":42}],37:[function(_dereq_,module,exports){
+},{"./objectPool":44}],39:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2202,7 +2742,7 @@ var htmlEscapes = {
 
 module.exports = htmlEscapes;
 
-},{}],38:[function(_dereq_,module,exports){
+},{}],40:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2238,7 +2778,7 @@ function isNative(value) {
 
 module.exports = isNative;
 
-},{}],39:[function(_dereq_,module,exports){
+},{}],41:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2253,7 +2793,7 @@ var keyPrefix = +new Date + '';
 
 module.exports = keyPrefix;
 
-},{}],40:[function(_dereq_,module,exports){
+},{}],42:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2268,7 +2808,7 @@ var largeArraySize = 75;
 
 module.exports = largeArraySize;
 
-},{}],41:[function(_dereq_,module,exports){
+},{}],43:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2283,7 +2823,7 @@ var maxPoolSize = 40;
 
 module.exports = maxPoolSize;
 
-},{}],42:[function(_dereq_,module,exports){
+},{}],44:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2298,7 +2838,7 @@ var objectPool = [];
 
 module.exports = objectPool;
 
-},{}],43:[function(_dereq_,module,exports){
+},{}],45:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2320,7 +2860,7 @@ var objectTypes = {
 
 module.exports = objectTypes;
 
-},{}],44:[function(_dereq_,module,exports){
+},{}],46:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2335,7 +2875,7 @@ var reInterpolate = /<%=([\s\S]+?)%>/g;
 
 module.exports = reInterpolate;
 
-},{}],45:[function(_dereq_,module,exports){
+},{}],47:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2352,7 +2892,7 @@ var reUnescapedHtml = RegExp('[' + keys(htmlEscapes).join('') + ']', 'g');
 
 module.exports = reUnescapedHtml;
 
-},{"../objects/keys":63,"./htmlEscapes":37}],46:[function(_dereq_,module,exports){
+},{"../objects/keys":68,"./htmlEscapes":39}],48:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2379,7 +2919,7 @@ function releaseArray(array) {
 
 module.exports = releaseArray;
 
-},{"./arrayPool":20,"./maxPoolSize":41}],47:[function(_dereq_,module,exports){
+},{"./arrayPool":21,"./maxPoolSize":43}],49:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2410,7 +2950,7 @@ function releaseObject(object) {
 
 module.exports = releaseObject;
 
-},{"./maxPoolSize":41,"./objectPool":42}],48:[function(_dereq_,module,exports){
+},{"./maxPoolSize":43,"./objectPool":44}],50:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2455,7 +2995,7 @@ var setBindData = !defineProperty ? noop : function(func, value) {
 
 module.exports = setBindData;
 
-},{"../utilities/noop":70,"./isNative":38}],49:[function(_dereq_,module,exports){
+},{"../utilities/noop":75,"./isNative":40}],51:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2495,7 +3035,7 @@ var shimKeys = function(object) {
 
 module.exports = shimKeys;
 
-},{"./objectTypes":43}],50:[function(_dereq_,module,exports){
+},{"./objectTypes":45}],52:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2535,7 +3075,7 @@ function slice(array, start, end) {
 
 module.exports = slice;
 
-},{}],51:[function(_dereq_,module,exports){
+},{}],53:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2607,7 +3147,72 @@ var assign = function(object, source, guard) {
 
 module.exports = assign;
 
-},{"../internals/baseCreateCallback":23,"../internals/objectTypes":43,"./keys":63}],52:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":25,"../internals/objectTypes":45,"./keys":68}],54:[function(_dereq_,module,exports){
+/**
+ * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
+ * Build: `lodash modularize modern exports="node" -o ./modern/`
+ * Copyright 2012-2013 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.5.2 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <http://lodash.com/license>
+ */
+var baseClone = _dereq_('../internals/baseClone'),
+    baseCreateCallback = _dereq_('../internals/baseCreateCallback');
+
+/**
+ * Creates a clone of `value`. If `isDeep` is `true` nested objects will also
+ * be cloned, otherwise they will be assigned by reference. If a callback
+ * is provided it will be executed to produce the cloned values. If the
+ * callback returns `undefined` cloning will be handled by the method instead.
+ * The callback is bound to `thisArg` and invoked with one argument; (value).
+ *
+ * @static
+ * @memberOf _
+ * @category Objects
+ * @param {*} value The value to clone.
+ * @param {boolean} [isDeep=false] Specify a deep clone.
+ * @param {Function} [callback] The function to customize cloning values.
+ * @param {*} [thisArg] The `this` binding of `callback`.
+ * @returns {*} Returns the cloned value.
+ * @example
+ *
+ * var characters = [
+ *   { 'name': 'barney', 'age': 36 },
+ *   { 'name': 'fred',   'age': 40 }
+ * ];
+ *
+ * var shallow = _.clone(characters);
+ * shallow[0] === characters[0];
+ * // => true
+ *
+ * var deep = _.clone(characters, true);
+ * deep[0] === characters[0];
+ * // => false
+ *
+ * _.mixin({
+ *   'clone': _.partialRight(_.clone, function(value) {
+ *     return _.isElement(value) ? value.cloneNode(false) : undefined;
+ *   })
+ * });
+ *
+ * var clone = _.clone(document.body);
+ * clone.childNodes.length;
+ * // => 0
+ */
+function clone(value, isDeep, callback, thisArg) {
+  // allows working with "Collections" methods without using their `index`
+  // and `collection` arguments for `isDeep` and `callback`
+  if (typeof isDeep != 'boolean' && isDeep != null) {
+    thisArg = callback;
+    callback = isDeep;
+    isDeep = false;
+  }
+  return baseClone(value, isDeep, typeof callback == 'function' && baseCreateCallback(callback, thisArg, 1));
+}
+
+module.exports = clone;
+
+},{"../internals/baseClone":23,"../internals/baseCreateCallback":25}],55:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2657,7 +3262,7 @@ function create(prototype, properties) {
 
 module.exports = create;
 
-},{"../internals/baseCreate":22,"./assign":51}],53:[function(_dereq_,module,exports){
+},{"../internals/baseCreate":24,"./assign":53}],56:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2713,7 +3318,7 @@ var defaults = function(object, source, guard) {
 
 module.exports = defaults;
 
-},{"../internals/objectTypes":43,"./keys":63}],54:[function(_dereq_,module,exports){
+},{"../internals/objectTypes":45,"./keys":68}],57:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2769,7 +3374,7 @@ var forIn = function(collection, callback, thisArg) {
 
 module.exports = forIn;
 
-},{"../internals/baseCreateCallback":23,"../internals/objectTypes":43}],55:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":25,"../internals/objectTypes":45}],58:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2821,7 +3426,7 @@ var forOwn = function(collection, callback, thisArg) {
 
 module.exports = forOwn;
 
-},{"../internals/baseCreateCallback":23,"../internals/objectTypes":43,"./keys":63}],56:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":25,"../internals/objectTypes":45,"./keys":68}],59:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2860,7 +3465,7 @@ function functions(object) {
 
 module.exports = functions;
 
-},{"./forIn":54,"./isFunction":60}],57:[function(_dereq_,module,exports){
+},{"./forIn":57,"./isFunction":65}],60:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2897,7 +3502,7 @@ function has(object, key) {
 
 module.exports = has;
 
-},{}],58:[function(_dereq_,module,exports){
+},{}],61:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2939,7 +3544,7 @@ function isArguments(value) {
 
 module.exports = isArguments;
 
-},{}],59:[function(_dereq_,module,exports){
+},{}],62:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2986,7 +3591,101 @@ var isArray = nativeIsArray || function(value) {
 
 module.exports = isArray;
 
-},{"../internals/isNative":38}],60:[function(_dereq_,module,exports){
+},{"../internals/isNative":40}],63:[function(_dereq_,module,exports){
+/**
+ * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
+ * Build: `lodash modularize modern exports="node" -o ./modern/`
+ * Copyright 2012-2013 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.5.2 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <http://lodash.com/license>
+ */
+
+/**
+ * Checks if `value` is a DOM element.
+ *
+ * @static
+ * @memberOf _
+ * @category Objects
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if the `value` is a DOM element, else `false`.
+ * @example
+ *
+ * _.isElement(document.body);
+ * // => true
+ */
+function isElement(value) {
+  return value && value.nodeType === 1 || false;
+}
+
+module.exports = isElement;
+
+},{}],64:[function(_dereq_,module,exports){
+/**
+ * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
+ * Build: `lodash modularize modern exports="node" -o ./modern/`
+ * Copyright 2012-2013 The Dojo Foundation <http://dojofoundation.org/>
+ * Based on Underscore.js 1.5.2 <http://underscorejs.org/LICENSE>
+ * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ * Available under MIT license <http://lodash.com/license>
+ */
+var forOwn = _dereq_('./forOwn'),
+    isFunction = _dereq_('./isFunction');
+
+/** `Object#toString` result shortcuts */
+var argsClass = '[object Arguments]',
+    arrayClass = '[object Array]',
+    objectClass = '[object Object]',
+    stringClass = '[object String]';
+
+/** Used for native method references */
+var objectProto = Object.prototype;
+
+/** Used to resolve the internal [[Class]] of values */
+var toString = objectProto.toString;
+
+/**
+ * Checks if `value` is empty. Arrays, strings, or `arguments` objects with a
+ * length of `0` and objects with no own enumerable properties are considered
+ * "empty".
+ *
+ * @static
+ * @memberOf _
+ * @category Objects
+ * @param {Array|Object|string} value The value to inspect.
+ * @returns {boolean} Returns `true` if the `value` is empty, else `false`.
+ * @example
+ *
+ * _.isEmpty([1, 2, 3]);
+ * // => false
+ *
+ * _.isEmpty({});
+ * // => true
+ *
+ * _.isEmpty('');
+ * // => true
+ */
+function isEmpty(value) {
+  var result = true;
+  if (!value) {
+    return result;
+  }
+  var className = toString.call(value),
+      length = value.length;
+
+  if ((className == arrayClass || className == stringClass || className == argsClass ) ||
+      (className == objectClass && typeof length == 'number' && isFunction(value.splice))) {
+    return !length;
+  }
+  forOwn(value, function() {
+    return (result = false);
+  });
+  return result;
+}
+
+module.exports = isEmpty;
+
+},{"./forOwn":58,"./isFunction":65}],65:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3015,7 +3714,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{}],61:[function(_dereq_,module,exports){
+},{}],66:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3056,7 +3755,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{"../internals/objectTypes":43}],62:[function(_dereq_,module,exports){
+},{"../internals/objectTypes":45}],67:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3095,7 +3794,7 @@ function isString(value) {
 
 module.exports = isString;
 
-},{}],63:[function(_dereq_,module,exports){
+},{}],68:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3133,7 +3832,7 @@ var keys = !nativeKeys ? shimKeys : function(object) {
 
 module.exports = keys;
 
-},{"../internals/isNative":38,"../internals/shimKeys":49,"./isObject":61}],64:[function(_dereq_,module,exports){
+},{"../internals/isNative":40,"../internals/shimKeys":51,"./isObject":66}],69:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3202,7 +3901,7 @@ function omit(object, callback, thisArg) {
 
 module.exports = omit;
 
-},{"../functions/createCallback":17,"../internals/baseDifference":25,"../internals/baseFlatten":26,"./forIn":54}],65:[function(_dereq_,module,exports){
+},{"../functions/createCallback":18,"../internals/baseDifference":27,"../internals/baseFlatten":28,"./forIn":57}],70:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3269,7 +3968,7 @@ function pick(object, callback, thisArg) {
 
 module.exports = pick;
 
-},{"../functions/createCallback":17,"../internals/baseFlatten":26,"./forIn":54,"./isObject":61}],66:[function(_dereq_,module,exports){
+},{"../functions/createCallback":18,"../internals/baseFlatten":28,"./forIn":57,"./isObject":66}],71:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3307,7 +4006,7 @@ function values(object) {
 
 module.exports = values;
 
-},{"./keys":63}],67:[function(_dereq_,module,exports){
+},{"./keys":68}],72:[function(_dereq_,module,exports){
 (function (global){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
@@ -3351,7 +4050,7 @@ support.funcNames = typeof Function.name == 'string';
 module.exports = support;
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./internals/isNative":38}],68:[function(_dereq_,module,exports){
+},{"./internals/isNative":40}],73:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3384,7 +4083,7 @@ function escape(string) {
 
 module.exports = escape;
 
-},{"../internals/escapeHtmlChar":33,"../internals/reUnescapedHtml":45,"../objects/keys":63}],69:[function(_dereq_,module,exports){
+},{"../internals/escapeHtmlChar":35,"../internals/reUnescapedHtml":47,"../objects/keys":68}],74:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3414,7 +4113,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],70:[function(_dereq_,module,exports){
+},{}],75:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3442,7 +4141,7 @@ function noop() {
 
 module.exports = noop;
 
-},{}],71:[function(_dereq_,module,exports){
+},{}],76:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3484,7 +4183,7 @@ function property(key) {
 
 module.exports = property;
 
-},{}],72:[function(_dereq_,module,exports){
+},{}],77:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3531,7 +4230,7 @@ function result(object, key) {
 
 module.exports = result;
 
-},{"../objects/isFunction":60}],73:[function(_dereq_,module,exports){
+},{"../objects/isFunction":65}],78:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3749,7 +4448,7 @@ function template(text, data, options) {
 
 module.exports = template;
 
-},{"../internals/escapeStringChar":34,"../internals/reInterpolate":44,"../objects/defaults":53,"../objects/keys":63,"../objects/values":66,"./escape":68,"./templateSettings":74}],74:[function(_dereq_,module,exports){
+},{"../internals/escapeStringChar":36,"../internals/reInterpolate":46,"../objects/defaults":56,"../objects/keys":68,"../objects/values":71,"./escape":73,"./templateSettings":79}],79:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3824,7 +4523,7 @@ var templateSettings = {
 
 module.exports = templateSettings;
 
-},{"../internals/reInterpolate":44,"./escape":68}],75:[function(_dereq_,module,exports){
+},{"../internals/reInterpolate":46,"./escape":73}],80:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -3860,6 +4559,6 @@ function uniqueId(prefix) {
 
 module.exports = uniqueId;
 
-},{}]},{},[3])
-(3)
+},{}]},{},[2])
+(2)
 });

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="../../dist/sector.js"></script>
+    <script src="main.js"></script>
+    <style>
+      input.invalid {
+        border-color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="reg-form" data-component="registration-form" data-attr-debug="true">
+      <p> Welcome <span class="firstName"></span> <span class="lastName"></span></p>
+      <p>
+        <label for="firstName">First Name:</label>
+        <input type="text" name="firstName" placeholder="ex: John">
+      </p>
+      <p>
+        <label for="lastName">Last Name:</label>
+        <input type="text" name="lastName" placeholder="ex: Smith">
+      </p>
+      <p>
+        <label for="email">Email:</label>
+        <input type="text" name="email" placeholder="ex: john@example.com">
+      </p>
+      <button>Submit</button>
+    </form>
+  </body>
+</html>
