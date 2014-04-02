@@ -6,7 +6,7 @@
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-03-31T21:41:41.122Z
+ * Date: 2014-04-02T00:52:52.177Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -53,7 +53,7 @@ Component.prototype.toString = function () {
   return '[' + this.type + ' ' + this.id + ']';
 };
 
-Component.prototype.defaults = {};
+Component.prototype.defaults = null;
 
 Component.prototype.initialize = utils.noop;
 
@@ -91,134 +91,7 @@ Component.destroyAll = function () {
 };
 
 module.exports = Component;
-},{"./mixins/hooked":5,"./mixins/listener":6,"./mixins/pubsub":7,"./mixins/traceable":8,"./registry":11,"./utils":13}],2:[function(_dereq_,module,exports){
-/*
- * inspiration and some code borrowed from
- * http://krasimirtsonev.com/blog/article/A-modern-JavaScript-router-in-100-lines-history-api-pushState-hash-url
- * and from Backbone.Router https://github.com/jashkenas/backbone
- */
-
-var Component = _dereq_('../component'),
-    utils = _dereq_('../utils');
-
-var optionalParam = /\((.*?)\)/g;
-var namedParam    = /(\(\?)?:\w+/g;
-var splatParam    = /\*\w+/g;
-var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
-
-var Router = Component.define({
-  type: 'router',
-  defaults: {
-    mode: 'history',
-    root: '/',
-    routeTopic: 'ui.routeChanged',
-    backRequestTopic: 'ui.navigateBackRequested',
-    forwardRequestTopic: 'ui.navigateForwardRequested',
-    navigateRequestTopic: 'ui.navigateRequested',
-    uiReadyTopic: 'ui.ready'
-  },
-  initialize: function (options) {
-    if (!history.pushState) { this.mode = 'hash'; }
-    if (this.root !== '/') {
-      this.root = '/' + this._clearSlashes(options.root) + '/';
-    }
-    this.routes = {};
-    if (options.routes) {
-      for (var name in options.routes) {
-        this.addRoute(name, options.routes[name]);
-      }
-    }
-    this.subscribe(this.navigateRequestTopic, this._handleNavigateRequest);
-    this.subscribe(this.backRequestTopic, this._handleBackRequest);
-    this.subscribe(this.forwardRequestTopic, this._handleForwardRequest);
-    this.listenTo(window, 'hashchange', this._handleHashChange);
-    this.subscribe(this.uiReadyTopic, function () {
-      var msg = this._parseFragment(this.getFragment());
-      this.publish(this.routeTopic, msg);
-    });
-  },
-  addRoute: function (name, route) {
-    route = route.replace(escapeRegExp, '\\$&')
-      .replace(optionalParam, '(?:$1)?')
-      .replace(namedParam, function(match, optional) {
-        return optional ? match : '([^/?]+)';
-      })
-      .replace(splatParam, '([^?]*?)');
-    var regex = new RegExp('^' + route + '(?:\\?([\\s\\S]*))?$');
-    this.trace('adding named route: ' + name, regex);
-    this.routes[name] = regex;
-  },
-  getFragment: function () {
-    var fragment = '', match;
-    if (this.mode === 'history') {
-      fragment = this._clearSlashes(decodeURI(location.pathname + location.search));
-      fragment = fragment.replace(/\?(.*)$/, '');
-      fragment = this.root !== '/' ? fragment.replace(this.root, '') : fragment;
-    } else {
-      match = window.location.href.match(/#(.*)$/);
-      fragment = match ? match[1] : '';
-    }
-    return fragment;
-  },
-  _parseFragment: function (fragment) {
-    this.trace('parsing fragment ' + fragment);
-    for (var name in this.routes) {
-      var route = this.routes[name];
-      this.trace('eval route ' + name, route);
-      var params = route.exec(fragment);
-      if (params) {
-        params = params.slice(1);
-        return {
-          name: name,
-          path: fragment,
-          params: utils.map(params, function(param, i) {
-            // Don't decode the search params.
-            if (i === params.length - 1) { return param || null; }
-            return param ? decodeURIComponent(param) : null;
-          })
-        };
-      }
-    }
-    return {};
-  },
-  _clearSlashes: function(path) {
-    return path.toString().replace(/\/$/, '').replace(/^\//, '');
-  },
-  _handleHashChange: function () {
-    var fragment, msg;
-    fragment = this.getFragment();
-    msg = this._parseFragment(fragment);
-    this.publish(this.routeTopic, msg);
-  },
-  _handleNavigateRequest: function (msg) {
-    var path = msg.data ? msg.data : '';
-    if(this.mode === 'history') {
-      history.pushState(null, null, this.root + this._clearSlashes(path));
-    } else {
-      window.location.href.match(/#(.*)$/);
-      window.location.href = window.location.href.replace(/#(.*)$/, '') + '#' + path;
-    }
-    var outMsg = this._parseFragment(path);
-    this.publish(this.routeTopic, outMsg);
-  },
-  _handleBackRequest: function () {
-    var fragment, msg;
-    window.history.back();
-    fragment = this.getFragment();
-    msg = this._parseFragment(fragment);
-    this.publish(this.routeTopic, msg);
-  },
-  _handleForwardRequest: function () {
-    var fragment, msg;
-    window.history.forward();
-    fragment = this.getFragment();
-    msg = this._parseFragment(fragment);
-    this.publish(this.routeTopic, msg);
-  }
-});
-
-module.exports = Router;
-},{"../component":1,"../utils":13}],3:[function(_dereq_,module,exports){
+},{"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./registry":10,"./utils":12}],2:[function(_dereq_,module,exports){
 
 exports.mixins = {
   Hooked: _dereq_('./mixins/hooked'),
@@ -230,15 +103,15 @@ exports.mixins = {
   Validator: _dereq_('./mixins/validator')
 };
 
-exports.components = {
-  Router: _dereq_('./components/router')
-};
+exports.components = {};
+
+exports.ext = {};
 
 exports.utils = _dereq_('./utils');
 
-exports.Component = _dereq_('./component');
-
 exports.registry = _dereq_('./registry');
+
+exports.Component = _dereq_('./component');
 
 exports.init = function (func, options, root) {
   var argsLength = arguments.length;
@@ -310,12 +183,12 @@ exports.init = function (func, options, root) {
     pub(options.readyTopic, {});
   });
 };
-},{"./component":1,"./components/router":2,"./mixins/bound":4,"./mixins/hooked":5,"./mixins/listener":6,"./mixins/pubsub":7,"./mixins/traceable":8,"./mixins/validator":9,"./mixins/view":10,"./registry":11,"./utils":13}],4:[function(_dereq_,module,exports){
+},{"./component":1,"./mixins/bound":3,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/validator":8,"./mixins/view":9,"./registry":10,"./utils":12}],3:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Bound () {
 
-  utils.defaults(this.defaults, {
+  this.defaults = utils.defaults({}, this.defaults, {
     data: null,
     binding: null
   });
@@ -373,7 +246,7 @@ module.exports = function () {
   this.bind = function () {
     if (this.binding) {
       utils.forIn(this.binding, function (binding, key) {
-        var nodes = [].slice.call(this.select(binding.selector));
+        var nodes = !binding.selector ? [this.el] : [].slice.call(this.select(binding.selector));
         var events = binding.events || ['change'];
         nodes.forEach(utils.bind(function (node, index) {
           if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
@@ -392,13 +265,14 @@ module.exports = function () {
           }
         }, this));
       }, this);
+      this._isBound = true;
     }
   };
 
   this.unbind = function () {
-    if (this.binding) {
+    if (this.binding && this._isBound) {
       utils.forIn(this.binding, function (binding, key) {
-        var nodes = [].slice.call(this.select(binding.selector));
+        var nodes = !binding.selector ? [this.el] : [].slice.call(this.select(binding.selector));
         var events = binding.events || ['change'];
         nodes.forEach(utils.bind(function (node, index) {
           if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
@@ -415,26 +289,25 @@ module.exports = function () {
     var binding, nodes;
     if (utils.has(this.binding, key)) {
       binding = this.binding[key];
-      nodes = [].slice.call(this.select(binding.selector));
+      nodes = !binding.selector ? [this.el] : [].slice.call(this.select(binding.selector));
       // TODO format value
-      value = value.toString();
       nodes.forEach(function (node, index) {
         if (binding.property) {
           node[binding.property] = value;
         } else if (binding.attribute) {
-          node.setAttribute(binding.attribute, value);
+          node.setAttribute(binding.attribute, value.toString());
         } else if (binding.html) {
-          node.innerHTML = value;
+          node.innerHTML = value.toString();
         } else if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
           if (node.type.toLowerCase() === 'checkbox') {
             node.checked = !!value;
           } else if (node.type.toLowerCase() === 'radio') {
-            node.checked = node.value === value;
+            node.checked = node.value === value.toString();
           } else {
-            node.value = value;
+            node.value = value.toString();
           }
         } else {
-          node.textContent = value;
+          node.textContent = value.toString();
         }
       });
     }
@@ -457,14 +330,14 @@ module.exports = function () {
   if (utils.has(this, 'render')) {
     this.around('render', function (render, data) {
       this.unbind();
-      render(data);
+      render.call(this, data);
       this.bind();
       this.update(data);
     });
   }
 
-  this.before('initialize', function () {
-    this.data = this.data || {};
+  this.before('initialize', function (options) {
+    this.data = this.data || options.data || {};
     if (this.binding) {
       var normalizedBinding = {};
       utils.forIn(this.binding, function (binding, key) {
@@ -478,10 +351,10 @@ module.exports = function () {
   });
 };
 
-},{"../utils":13}],5:[function(_dereq_,module,exports){
+},{"../utils":12}],4:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Hooked () {
   this.after = function (method, afterFunc) {
     var oFunc = this[method];
     this[method] = function composedFunc () {
@@ -504,10 +377,10 @@ module.exports = function () {
     this[method] = utils.wrap(oFunc, wrapFunc);
   };
 };
-},{"../utils":13}],6:[function(_dereq_,module,exports){
+},{"../utils":12}],5:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Listener () {
 
   this.listenTo = function (el, event, func) {
     if (!func) {
@@ -647,10 +520,10 @@ module.exports = function () {
     }
   });
 };
-},{"../utils":13}],7:[function(_dereq_,module,exports){
+},{"../utils":12}],6:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function PubSub () {
 
   this.publish = function (topic, data) {
     this.trace && this.trace('=>> ' + topic , data);
@@ -680,12 +553,13 @@ module.exports = function () {
     this.stopListening(window.document, 'pubsub.' + topic);
   };
 };
-},{"../utils":13}],8:[function(_dereq_,module,exports){
+},{"../utils":12}],7:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Traceable() {
   if (!console) { return; }
-  utils.defaults(this.defaults, {debug: false});
+
+  this.defaults = utils.defaults({}, this.defaults, { debug: false });
 
   this.trace = function (message, data) {
     if (this.debug) {
@@ -701,12 +575,12 @@ module.exports = function () {
     this.trace('destroyed');
   });
 };
-},{"../utils":13}],9:[function(_dereq_,module,exports){
+},{"../utils":12}],8:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-module.exports = function () {
+module.exports = function Validator () {
 
-  utils.defaults(this.defaults, {
+  this.defaults = utils.defaults({}, this.defaults, {
     validation: null,
     invalidClassName: 'invalid',
     validityMessages: {
@@ -993,10 +867,10 @@ var validators = {
     return true;
   }
 };
-},{"../utils":13}],10:[function(_dereq_,module,exports){
+},{"../utils":12}],9:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
-var View = function () {
+var View = function View () {
   var _templateCache = {};
 
   this.setupUI = function () {
@@ -1056,8 +930,10 @@ var View = function () {
     this.render = function (data) {
       var html = '', el, source = '';
       if (this.template) {
-        this.teardownEvents();
-        this.teardownUI();
+        if (this._isRendered) {
+          this.teardownEvents();
+          this.teardownUI();
+        }
         if (utils.isFunction(this.template)) {
           html = this.template(data);
         } else {
@@ -1074,6 +950,7 @@ var View = function () {
         this.el.innerHTML = html;
         this.setupUI();
         this.setupEvents();
+        this._isRendered = true;
       }
     };
   }
@@ -1083,13 +960,15 @@ var View = function () {
   };
 
   this.before('initialize', function () {
-    this.setupUI();
-    this.setupEvents();
+    if (this.el.children.length > 0) {
+      this.setupUI();
+      this.setupEvents();
+    }
   });
 };
 
 module.exports = View;
-},{"../utils":13}],11:[function(_dereq_,module,exports){
+},{"../utils":12}],10:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils');
 
 var Registry = function () {
@@ -1152,7 +1031,7 @@ Registry.prototype.removeInstancesOf = function (component) {
 };
 
 module.exports = new Registry();
-},{"./utils":13}],12:[function(_dereq_,module,exports){
+},{"./utils":12}],11:[function(_dereq_,module,exports){
 /* global _ */
 if ('undefined' !== typeof _) {
   exports.omit = _.omit;
@@ -1179,7 +1058,7 @@ if ('undefined' !== typeof _) {
   exports.forEach = _.forEach;
   exports.map = _.map;
 }
-},{}],13:[function(_dereq_,module,exports){
+},{}],12:[function(_dereq_,module,exports){
 
 exports.define = function (properties /*, mixins... */) {
   var child, mixins = [], parent = this;
@@ -1282,9 +1161,7 @@ exports.createEvent = function (type, data, options) {
 exports.extend = _dereq_('lodash-node/modern/objects/assign');
 exports.extend(exports, _dereq_('./utils-ext-global'));
 exports.extend(exports, _dereq_('./utils-ext-require'));
-},{"./utils-ext-global":12,"./utils-ext-require":14,"lodash-node/modern/objects/assign":26}],14:[function(_dereq_,module,exports){
-
-},{}],15:[function(_dereq_,module,exports){
+},{"./utils-ext-global":11,"lodash-node/modern/objects/assign":24}],13:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1326,7 +1203,7 @@ function bind(func, thisArg) {
 
 module.exports = bind;
 
-},{"../internals/createWrapper":20,"../internals/slice":25}],16:[function(_dereq_,module,exports){
+},{"../internals/createWrapper":18,"../internals/slice":23}],14:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1390,7 +1267,7 @@ function baseBind(bindData) {
 
 module.exports = baseBind;
 
-},{"../objects/isObject":28,"./baseCreate":17,"./setBindData":23,"./slice":25}],17:[function(_dereq_,module,exports){
+},{"../objects/isObject":26,"./baseCreate":15,"./setBindData":21,"./slice":23}],15:[function(_dereq_,module,exports){
 (function (global){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
@@ -1436,7 +1313,7 @@ if (!nativeCreate) {
 module.exports = baseCreate;
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../objects/isObject":28,"../utilities/noop":32,"./isNative":21}],18:[function(_dereq_,module,exports){
+},{"../objects/isObject":26,"../utilities/noop":30,"./isNative":19}],16:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1518,7 +1395,7 @@ function baseCreateCallback(func, thisArg, argCount) {
 
 module.exports = baseCreateCallback;
 
-},{"../functions/bind":15,"../support":30,"../utilities/identity":31,"./setBindData":23}],19:[function(_dereq_,module,exports){
+},{"../functions/bind":13,"../support":28,"../utilities/identity":29,"./setBindData":21}],17:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1598,7 +1475,7 @@ function baseCreateWrapper(bindData) {
 
 module.exports = baseCreateWrapper;
 
-},{"../objects/isObject":28,"./baseCreate":17,"./setBindData":23,"./slice":25}],20:[function(_dereq_,module,exports){
+},{"../objects/isObject":26,"./baseCreate":15,"./setBindData":21,"./slice":23}],18:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1706,7 +1583,7 @@ function createWrapper(func, bitmask, partialArgs, partialRightArgs, thisArg, ar
 
 module.exports = createWrapper;
 
-},{"../objects/isFunction":27,"./baseBind":16,"./baseCreateWrapper":19,"./slice":25}],21:[function(_dereq_,module,exports){
+},{"../objects/isFunction":25,"./baseBind":14,"./baseCreateWrapper":17,"./slice":23}],19:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1742,7 +1619,7 @@ function isNative(value) {
 
 module.exports = isNative;
 
-},{}],22:[function(_dereq_,module,exports){
+},{}],20:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1764,7 +1641,7 @@ var objectTypes = {
 
 module.exports = objectTypes;
 
-},{}],23:[function(_dereq_,module,exports){
+},{}],21:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1809,7 +1686,7 @@ var setBindData = !defineProperty ? noop : function(func, value) {
 
 module.exports = setBindData;
 
-},{"../utilities/noop":32,"./isNative":21}],24:[function(_dereq_,module,exports){
+},{"../utilities/noop":30,"./isNative":19}],22:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1849,7 +1726,7 @@ var shimKeys = function(object) {
 
 module.exports = shimKeys;
 
-},{"./objectTypes":22}],25:[function(_dereq_,module,exports){
+},{"./objectTypes":20}],23:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1889,7 +1766,7 @@ function slice(array, start, end) {
 
 module.exports = slice;
 
-},{}],26:[function(_dereq_,module,exports){
+},{}],24:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1961,7 +1838,7 @@ var assign = function(object, source, guard) {
 
 module.exports = assign;
 
-},{"../internals/baseCreateCallback":18,"../internals/objectTypes":22,"./keys":29}],27:[function(_dereq_,module,exports){
+},{"../internals/baseCreateCallback":16,"../internals/objectTypes":20,"./keys":27}],25:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -1990,7 +1867,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{}],28:[function(_dereq_,module,exports){
+},{}],26:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2031,7 +1908,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{"../internals/objectTypes":22}],29:[function(_dereq_,module,exports){
+},{"../internals/objectTypes":20}],27:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2069,7 +1946,7 @@ var keys = !nativeKeys ? shimKeys : function(object) {
 
 module.exports = keys;
 
-},{"../internals/isNative":21,"../internals/shimKeys":24,"./isObject":28}],30:[function(_dereq_,module,exports){
+},{"../internals/isNative":19,"../internals/shimKeys":22,"./isObject":26}],28:[function(_dereq_,module,exports){
 (function (global){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
@@ -2113,7 +1990,7 @@ support.funcNames = typeof Function.name == 'string';
 module.exports = support;
 
 }).call(this,typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./internals/isNative":21}],31:[function(_dereq_,module,exports){
+},{"./internals/isNative":19}],29:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2143,7 +2020,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],32:[function(_dereq_,module,exports){
+},{}],30:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
  * Build: `lodash modularize modern exports="node" -o ./modern/`
@@ -2171,6 +2048,6 @@ function noop() {
 
 module.exports = noop;
 
-},{}]},{},[3])
-(3)
+},{}]},{},[2])
+(2)
 });
