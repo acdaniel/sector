@@ -72,7 +72,7 @@ and keep things simple and avoid the kitchen sink approach to development.
 
 Installation
 ------------
-Sector can be easliy installed with [Bower](http://bower.io):
+Sector can be easily installed with [Bower](http://bower.io):
 
     > bower install sector
 
