@@ -1,0 +1,41 @@
+{
+  "name": "sector",
+  "version": "0.1.8",
+  "homepage": "https://github.com/acdaniel/sector",
+  "authors": [
+    "Adam Daniel <adam@acdaniel.com>"
+  ],
+  "description": "A component and pub/sub based UI library for javascript applications.",
+  "main": "dist/sector.js",
+  "moduleType": [
+    "amd",
+    "globals",
+    "node"
+  ],
+  "keywords": [
+    "pub/sub",
+    "component",
+    "ui",
+    "javascript",
+    "browser"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "package.json",
+    "gulpfile.js"
+  ],
+  "_release": "0.1.8",
+  "_resolution": {
+    "type": "version",
+    "tag": "0.1.8",
+    "commit": "a96c30ca898fea814ebb876acd25d31e479fe7bd"
+  },
+  "_source": "git://github.com/acdaniel/sector.git",
+  "_target": "~0.1.2",
+  "_originalSource": "sector"
+}
