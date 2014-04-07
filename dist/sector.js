@@ -1,12 +1,12 @@
 /**
- * sector v0.1.9
+ * sector v0.1.10
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-04-04T02:55:41.039Z
+ * Date: 2014-04-07T22:22:28.546Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -94,24 +94,6 @@ Component.destroyAll = function () {
 module.exports = Component;
 },{"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./registry":10,"./utils":13}],2:[function(_dereq_,module,exports){
 
-exports.mixins = {
-  Hooked: _dereq_('./mixins/hooked'),
-  Traceable: _dereq_('./mixins/traceable'),
-  Listener: _dereq_('./mixins/listener'),
-  PubSub: _dereq_('./mixins/pubsub'),
-  View: _dereq_('./mixins/view'),
-  Bound: _dereq_('./mixins/bound'),
-  Validator: _dereq_('./mixins/validator')
-};
-
-exports.components = {};
-
-exports.ext = {};
-
-exports.utils = _dereq_('./utils');
-
-exports.registry = _dereq_('./registry');
-
 exports.Component = _dereq_('./component');
 
 exports.init = function (func, options, root) {
@@ -184,6 +166,24 @@ exports.init = function (func, options, root) {
     pub(options.readyTopic, {});
   });
 };
+
+exports.mixins = {
+  Hooked: _dereq_('./mixins/hooked'),
+  Traceable: _dereq_('./mixins/traceable'),
+  Listener: _dereq_('./mixins/listener'),
+  PubSub: _dereq_('./mixins/pubsub'),
+  View: _dereq_('./mixins/view'),
+  Bound: _dereq_('./mixins/bound'),
+  Validator: _dereq_('./mixins/validator')
+};
+
+exports.components = {};
+
+exports.ext = {};
+
+exports.utils = _dereq_('./utils');
+
+exports.registry = _dereq_('./registry');
 },{"./component":1,"./mixins/bound":3,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/validator":8,"./mixins/view":9,"./registry":10,"./utils":13}],3:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
@@ -618,7 +618,8 @@ module.exports = function Validator () {
   };
 
   this.checkFieldValidity = function (name, options) {
-    var retVal = true, radios = [], radioValue, rule, node, nodes = this.select('[name="' + name +'"]');
+    var retVal = true, radios = [], radioValue, rule, node;
+    var nodes = (this.ui && utils.has(this.ui, name)) ? [this.ui[name]] : this.select('[name="' + name +'"]');
     options = options || (this.validation ? this.validation[name] : {});
 
     if (nodes.length === 0) { return true; }
@@ -673,10 +674,12 @@ module.exports = function Validator () {
 
   this.setValidity = function (field, msg, rule, options) {
     var nodes, node, e, retVal;
-    if (utils.isString(field)) {
+    if (this.ui && utils.has(this.ui, field)) {
+      nodes = [this.ui[field]];
+    } else if (utils.isString(field)) {
       nodes = [].slice.call(this.select('[name="' + field + '"]'));
     } else if (utils.isElement(field)) {
-      nodes = nodes = [field];
+      nodes = [field];
     } else if (utils.isArray(field)) {
       nodes = field;
     } else {

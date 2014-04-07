@@ -15,9 +15,9 @@ sector.Component.define({
     'email invalid': 'handleInvalid'
   },
   validation: {
-    'firstName': { required: true },
-    'lastName': { required: true },
-    'email': { email: true }
+    firstName: { required: true },
+    lastName: { required: true },
+    email: { email: true }
   },
   binding: {
     'name.first': {
