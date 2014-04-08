@@ -112,10 +112,6 @@ For an example see the
 If Sector is installed via NPM, you can simply `require('sector')` in your
 client-side javascript then compile with Bower as you would any other npm module.
 
-Browser Support
----------------
-Chrome, Safari, Firefox, Opera, IE 9+
-
 Examples
 --------
 You can find some examples of the core Sector functionality in the
@@ -124,3 +120,18 @@ You can find some examples of the core Sector functionality in the
 A [TodoMVC](http://todomvc.com) example is also available at
 [todomvc-sector](http://acdaniel.github.io/todomvc-sector)
 ([source](http://github.com/acdaniel/todomvc-sector)).
+
+Extensions
+----------
+
+[sector-router](http://github.com/acdaniel/sector-router): an extension for the
+Sector.js library that adds a router component and mixins to support route aware
+components.
+
+[sector-list](http://github.com/acdaniel/sector-list): an extension for the
+Sector.js library that allows repeating and binding to a collection with
+selection management.
+
+Browser Support
+---------------
+Chrome, Safari, Firefox, Opera, IE 9+
