@@ -20,12 +20,12 @@ sector.Component.define({
     email: { email: true }
   },
   binding: {
-    'name.first': {
-      selector: 'input[name=firstName], span.firstName',
+    'input[name=firstName], span.firstName': {
+      path: 'name.first',
       events: ['change', 'keyup']
     },
-    'name.last': 'input[name=lastName], span.lastName',
-    'email': 'input[name=email]'
+    'input[name=lastName], span.lastName': 'name.last',
+    'input[name=email]': 'email'
   },
   handleSubmit: function (event) {
     event.preventDefault();

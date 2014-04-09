@@ -16,7 +16,13 @@ sector.Component.define({
     'form submit': 'handleSubmit'
   },
   binding: {
-    'name': 'input[name=name], span.name'
+    'input[name=name]': 'name',
+    'span.name': {
+      path: 'name',
+      formatter: function (value) {
+        return '"' + value + '"';
+      }
+    }
   },
   initialize: function () {
     this.set('name', 'World');
