@@ -1,12 +1,12 @@
 /**
- * sector v0.1.12
+ * sector v0.1.13
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-04-09T02:09:24.798Z
+ * Date: 2014-04-11T01:46:46.191Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -298,11 +298,11 @@ module.exports = function Bound () {
         } else {
           nodes = [].slice.call(this.select(binding.selector));
         }
-        if (binding.formatter) {
-          if (utils.isString(binding.formatter)) {
-            binding.formatter = this[binding.formatter];
+        if (binding.format) {
+          if (utils.isString(binding.format)) {
+            binding.format = this[binding.format];
           }
-          value = binding.formatter.call(this, value);
+          value = binding.format.call(this, value);
         }
         nodes.forEach(function (node) {
           if (binding.property) {
@@ -1181,6 +1181,82 @@ exports.setObjectPath = function (obj, path, value) {
 exports.extend = _dereq_('lodash-node/modern/objects/assign');
 exports.extend(exports, _dereq_('./utils-ext-global'));
 exports.extend(exports, _dereq_('./utils-ext-require'));
+
+var animLastTime = 0;
+exports.requestAnimationFrame = exports.bind(window.requestAnimationFrame ||
+    window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame ||
+    window.msRequestAnimationFrame, window);
+
+if (!exports.requestAnimationFrame) {
+  exports.requestAnimationFrame = exports.bind(function (callback) {
+    var currTime = new Date().getTime();
+    var timeToCall = Math.max(0, 16 - (currTime - animLastTime));
+    var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+      timeToCall);
+    animLastTime = currTime + timeToCall;
+    return id;
+  }, window);
+}
+
+exports.cancelAnimationFrame = exports.bind(window.cancelAnimationFrame ||
+  window.mozCancelAnimationFrame || window.webkitCancelAnimationFrame ||
+  window.msCancelAnimationFrame, window);
+
+if (!exports.cancelAnimationFrame) {
+  exports.cancelAnimationFrame = exports.bind(function(id) {
+    clearTimeout(id);
+  }, window);
+}
+
+exports.easing = {
+  linear: function (t, b, c, d) {
+    return c * (t /= d) + b;
+  },
+  easeIn: function (t, b, c, d) {
+    t /= d;
+    return c * t * t + b;
+  },
+  easeOut: function (t, b, c, d) {
+    t /= d;
+    return -c * t * (t - 2) + b;
+  },
+  easeInOut: function (t, b, c, d) {
+    t /= d / 2;
+    if (t < 1) { return c / 2 * t * t + b; }
+    t--;
+    return -c / 2 * (t * (t - 2) - 1) + b;
+  }
+};
+
+exports.animate = function (startValue, endValue, options, self) {
+  exports.defaults(options, {
+    duration: 1000,
+    step: exports.noop,
+    easing: exports.easing.linear,
+    complete: exports.noop
+  });
+  if (exports.isString(options.easing)) {
+    options.easing = exports.easing[options.easing];
+  }
+  startValue = parseFloat(startValue);
+  endValue = parseFloat(endValue);
+  var changeValue = endValue - startValue;
+  var startTime = +new Date();
+  var step = function () {
+    var currentTime = +new Date(),
+        lapsedTime = currentTime - startTime,
+        rate = Math.min(1, lapsedTime / options.duration),
+        val = Math.min(endValue, options.easing(lapsedTime, startValue, changeValue, options.duration));
+    options.step.call(self, rate, val);
+    if (lapsedTime >= options.duration) {
+      options.step.call(self, 1, endValue);
+      options.complete.call(self, 1, endValue);
+      return;
+    }
+    exports.requestAnimationFrame(step);
+  };
+  return exports.requestAnimationFrame(step);
+};
 },{"./utils-ext-global":11,"lodash-node/modern/objects/assign":24}],13:[function(_dereq_,module,exports){
 /**
  * Lo-Dash 2.4.1 (Custom Build) <http://lodash.com/>
