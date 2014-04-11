@@ -64,7 +64,7 @@ sector.Component.define({
   handleAnimateSubmit: function (event) {
     event.preventDefault();
     this.set('currentValue', this.data.startValue);
-    sector.utils.animate(this.data.startValue, this.data.endValue, {
+    sector.animate(this.data.startValue, this.data.endValue, {
       easing: 'easeInOut',
       step: function (progress, value) {
         this.set('currentValue', value);

@@ -4,8 +4,24 @@
     <script src="../../dist/sector.js"></script>
     <script src="main.js"></script>
     <style>
+      .alert {
+        position: relative;
+        background-color: red;
+        color: white;
+        padding: .4em .8em;
+        margin: .4em;
+        overflow: hidden;
+      }
+      .alert .close {
+        position: absolute;
+        right: 0;
+        color: white;
+        font-size: 1.9em;
+        padding: 0 .4em;
+        cursor: pointer;
+      }
       input.invalid {
-        border-color: red;
+        border: 2px solid red;
       }
     </style>
   </head>

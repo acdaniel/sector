@@ -1,12 +1,12 @@
 /**
- * sector v0.1.13
+ * sector v0.1.14
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-04-11T01:46:46.189Z
+ * Date: 2014-04-11T06:23:07.682Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -98,13 +98,13 @@ exports.Component = _dereq_('./component');
 
 exports.init = function (func, options, root) {
   var argsLength = arguments.length;
-  if (argsLength === 1 && !exports.utils.isFunction(arguments[0])) {
+  if (argsLength === 1 && !exports.isFunction(arguments[0])) {
     options = arguments[0];
     func = null;
   }
   root = root || window.document;
   options = options || {};
-  exports.utils.defaults(options, {
+  exports.defaults(options, {
     publishProgress: false,
     ignoreNotFound: false,
     componentSelector: '[data-component]',
@@ -115,12 +115,12 @@ exports.init = function (func, options, root) {
     initializingTopic: 'ui.initializing'
   });
   var pub = function (topic, data) {
-    var e = exports.utils.createEvent('pubsub.' + topic,
+    var e = exports.createEvent('pubsub.' + topic,
       { topic: topic, data: data }
     );
     window.document.dispatchEvent(e);
   };
-  exports.utils.documentReady(function () {
+  exports.documentReady(function () {
     if (func) { func(); }
     var nodes = [].slice.call(root.querySelectorAll(options.componentSelector));
     var componentCount = nodes.length;
@@ -129,7 +129,7 @@ exports.init = function (func, options, root) {
       function next () {
         if (i >= l) { return; }
         fn(arr[i], i++);
-        exports.utils.defer(next);
+        exports.defer(next);
       }
       next();
     }
@@ -181,10 +181,11 @@ exports.components = {};
 
 exports.ext = {};
 
-exports.utils = _dereq_('./utils');
-
 exports.registry = _dereq_('./registry');
-},{"./component":1,"./mixins/bound":3,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/validator":8,"./mixins/view":9,"./registry":10,"./utils":13}],3:[function(_dereq_,module,exports){
+
+var assign = _dereq_('lodash-node/modern/objects/assign');
+assign(exports, _dereq_('./utils'));
+},{"./component":1,"./mixins/bound":3,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/validator":8,"./mixins/view":9,"./registry":10,"./utils":13,"lodash-node/modern/objects/assign":53}],3:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
 module.exports = function Bound () {
@@ -1082,6 +1083,9 @@ exports.defer = _dereq_('lodash-node/modern/functions/defer');
 exports.forEach = _dereq_('lodash-node/modern/collections/forEach');
 exports.map = _dereq_('lodash-node/modern/collections/map');
 },{"lodash-node/modern/collections/forEach":14,"lodash-node/modern/collections/map":15,"lodash-node/modern/functions/bind":16,"lodash-node/modern/functions/bindAll":17,"lodash-node/modern/functions/defer":19,"lodash-node/modern/functions/wrap":20,"lodash-node/modern/objects/clone":54,"lodash-node/modern/objects/create":55,"lodash-node/modern/objects/defaults":56,"lodash-node/modern/objects/forIn":57,"lodash-node/modern/objects/has":60,"lodash-node/modern/objects/isArray":62,"lodash-node/modern/objects/isElement":63,"lodash-node/modern/objects/isEmpty":64,"lodash-node/modern/objects/isFunction":65,"lodash-node/modern/objects/isString":67,"lodash-node/modern/objects/omit":69,"lodash-node/modern/objects/pick":70,"lodash-node/modern/objects/values":71,"lodash-node/modern/utilities/noop":75,"lodash-node/modern/utilities/result":77,"lodash-node/modern/utilities/template":78,"lodash-node/modern/utilities/uniqueId":80}],13:[function(_dereq_,module,exports){
+exports.extend = _dereq_('lodash-node/modern/objects/assign');
+exports.extend(exports, _dereq_('./utils-ext-global'));
+exports.extend(exports, _dereq_('./utils-ext-require'));
 
 exports.define = function (properties /*, mixins... */) {
   var child, mixins = [], parent = this;
@@ -1124,9 +1128,9 @@ exports.documentReady = function (func) {
   }
 };
 
-exports.select = function (el, selector, one) {
-  if ('undefined' === one) {
-    one = selector || false;
+exports.select = function (el, selector, single) {
+  if ('undefined' === single) {
+    single = selector || false;
     selector = el;
     el = null;
   }
@@ -1135,7 +1139,7 @@ exports.select = function (el, selector, one) {
     el = null;
   }
   el = el || window.document;
-  return one ? el.querySelector(selector) : el.querySelectorAll(selector);
+  return single ? el.querySelector(selector) : el.querySelectorAll(selector);
 };
 
 exports.matches = function(el, selector) {
@@ -1202,9 +1206,48 @@ exports.setObjectPath = function (obj, path, value) {
   }
 };
 
-exports.extend = _dereq_('lodash-node/modern/objects/assign');
-exports.extend(exports, _dereq_('./utils-ext-global'));
-exports.extend(exports, _dereq_('./utils-ext-require'));
+exports.buildHtml = function (obj, hooks) {
+  hooks = hooks || {};
+  var buildElement = function (parent, key, content) {
+    var el, tagName, id, className;
+    if (key === '@') {
+      exports.forIn(content, function (value, attr) {
+        parent.setAttribute(attr, value.toString());
+        if (hooks.attribute) {
+          hooks.attribute(parent, attr);
+        }
+      });
+    } else if (key === 'text') {
+      el = document.createTextNode(content.toString());
+    } else {
+      var matches = key.match(/^([a-z][\w0-9-]*)?(?:#([a-z][\w0-9-]*))?((?:\.([a-z][\w0-9-]*))+)?$/i);
+      tagName = matches[1] || 'div';
+      id = matches[2] || null;
+      className = matches[3] ? matches[3].replace(/\./g,' ').trim() : null;
+      el = document.createElement(tagName);
+      if (id) { el.id = id; }
+      if (className) { el.className = className; }
+      if (exports.isString(content)) {
+        el.innerHTML = content;
+      } else {
+        exports.forIn(content, function (value, name) {
+          buildElement(el, name, value);
+        });
+      }
+    }
+    if (el) {
+      if (hooks.element) {
+        hooks.element(el);
+      }
+      parent.appendChild(el);
+    }
+  };
+  var frag = document.createDocumentFragment();
+  exports.forIn(obj, function (value, key) {
+    buildElement(frag, key, value);
+  }, this);
+  return frag;
+};
 
 var animLastTime = 0;
 exports.requestAnimationFrame = exports.bind(window.requestAnimationFrame ||
@@ -1274,7 +1317,9 @@ exports.animate = function (startValue, endValue, options, self) {
     options.step.call(self, rate, val);
     if (lapsedTime >= options.duration) {
       options.step.call(self, 1, endValue);
-      options.complete.call(self, 1, endValue);
+      exports.defer(function () {
+        options.complete.call(self, 1, endValue);
+      });
       return;
     }
     exports.requestAnimationFrame(step);
