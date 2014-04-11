@@ -3,15 +3,37 @@
   <head>
     <script src="../../dist/sector.js"></script>
     <script src="main.js"></script>
+    <style>
+    .box {
+      position: relative;
+      height: 40px;
+      width: 40px;
+      left: 0px;
+      background-color: red;
+    }
+    </style>
   </head>
   <body>
     <script data-component="alerter" data-attr-debug="true"></script>
     <div id="hello-world" data-component="hello-world" data-attr-debug="true">
-      <form>
+      <form class="hello">
+        <h4>Form Binding Example</h4>
         <label for="name">Enter a name:</label>
         <input name="name"><button>Say Hello</button>
         <p>Current name: <span class="name"></span></p>
       </form>
+    </div>
+    <hr>
+    <div id="animate-example" data-component="animate-example" data-attr-debug="true">
+      <form class="animate">
+        <h4>Property Binding/Animation Example</h4>
+        <label for="startValue">Start:</label>
+        <input name="startValue" value="0">
+        <label for="endValue">End:</label>
+        <input name="endValue" value="0">
+        <button>Run</button>
+      </form>
+      <div class="box"></div>
     </div>
   </body>
 </html>
