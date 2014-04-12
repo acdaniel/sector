@@ -46,13 +46,20 @@ sector.Component.define({
   binding: {
     'input[name=startValue]': 'startValue',
     'input[name=endValue]': 'endValue',
+    '.progress': {
+      path: 'progress',
+      property: 'style.width',
+      format: function (value) {
+        return (value * 100) + '%';
+      }
+    },
     '.box': {
       path: 'currentValue',
       property: 'style.left',
       format: function (value) {
         return value + 'px';
       }
-    }
+    },
   },
   initialize: function () {
     this.update({
@@ -63,10 +70,12 @@ sector.Component.define({
   },
   handleAnimateSubmit: function (event) {
     event.preventDefault();
+    this.set('progress', 0);
     this.set('currentValue', this.data.startValue);
     sector.animate(this.data.startValue, this.data.endValue, {
       easing: 'easeInOut',
       step: function (progress, value) {
+        this.set('progress', progress);
         this.set('currentValue', value);
       }
     }, this);
