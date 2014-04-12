@@ -6,7 +6,7 @@
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-04-11T06:23:07.682Z
+ * Date: 2014-04-12T01:33:08.521Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -1295,7 +1295,7 @@ exports.easing = {
   }
 };
 
-exports.animate = function (startValue, endValue, options, self) {
+exports.animate = function (startValue, endValue, options, thisArg) {
   exports.defaults(options, {
     duration: 1000,
     step: exports.noop,
@@ -1307,24 +1307,22 @@ exports.animate = function (startValue, endValue, options, self) {
   }
   startValue = parseFloat(startValue);
   endValue = parseFloat(endValue);
-  var changeValue = endValue - startValue;
-  var startTime = +new Date();
+  var changeValue = endValue - startValue, startTime = +new Date();
   var step = function () {
     var currentTime = +new Date(),
         lapsedTime = currentTime - startTime,
         rate = Math.min(1, lapsedTime / options.duration),
-        val = Math.min(endValue, options.easing(lapsedTime, startValue, changeValue, options.duration));
-    options.step.call(self, rate, val);
-    if (lapsedTime >= options.duration) {
-      options.step.call(self, 1, endValue);
-      exports.defer(function () {
-        options.complete.call(self, 1, endValue);
-      });
-      return;
+        val = options.easing(lapsedTime, startValue, changeValue, options.duration);
+    if (rate < 1) {
+      if (options.step.call(thisArg, rate, val) !== false) {
+        exports.requestAnimationFrame(step);
+      }
+    } else {
+      options.step.call(thisArg, 1, endValue);
+      options.complete.call(thisArg, 1, endValue);
     }
-    exports.requestAnimationFrame(step);
   };
-  return exports.requestAnimationFrame(step);
+  step();
 };
 },{"./utils-ext-global":11,"./utils-ext-require":12,"lodash-node/modern/objects/assign":53}],14:[function(_dereq_,module,exports){
 /**
