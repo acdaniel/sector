@@ -20,7 +20,7 @@ sector.Component.define({
   binding: {
     'input[name=name]': 'name',
     'span.name': {
-      path: 'name',
+      key: 'name',
       format: function (value) {
         return '"' + value + '"';
       }
@@ -47,14 +47,14 @@ sector.Component.define({
     'input[name=startValue]': 'startValue',
     'input[name=endValue]': 'endValue',
     '.progress': {
-      path: 'progress',
+      key: 'progress',
       property: 'style.width',
       format: function (value) {
         return (value * 100) + '%';
       }
     },
     '.box': {
-      path: 'currentValue',
+      key: 'currentValue',
       property: 'style.left',
       format: function (value) {
         return value + 'px';

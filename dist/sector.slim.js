@@ -1,12 +1,12 @@
 /**
- * sector v0.1.15
+ * sector v0.1.16
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-04-12T01:58:54.811Z
+ * Date: 2014-04-18T02:20:38.568Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -102,7 +102,7 @@ exports.init = function (func, options, root) {
     options = arguments[0];
     func = null;
   }
-  root = root || window.document;
+  root = root || document;
   options = options || {};
   exports.defaults(options, {
     publishProgress: false,
@@ -118,7 +118,7 @@ exports.init = function (func, options, root) {
     var e = exports.createEvent('pubsub.' + topic,
       { topic: topic, data: data }
     );
-    window.document.dispatchEvent(e);
+    document.dispatchEvent(e);
   };
   exports.documentReady(function () {
     if (func) { func(); }
@@ -199,15 +199,15 @@ module.exports = function Bound () {
     if (obj) {
       this.data = obj;
     }
-    var traverse = utils.bind(function (obj, path) {
+    var traverse = utils.bind(function (obj, key) {
       var value;
-      for (var key in obj) {
-        value = obj[key];
-        var newPath = path ? path + '.' + key : key;
+      for (var name in obj) {
+        value = obj[name];
+        var newKey = key ? key + '.' + name : name;
         if ('object' === typeof value) {
-          traverse(value, newPath);
+          traverse(value, newKey);
         } else {
-          this.setDOMValue(newPath, value);
+          this.setDOMValue(newKey, value);
         }
       }
     }, this);
@@ -225,12 +225,12 @@ module.exports = function Bound () {
 
   this.bind = function () {
     if (this.binding) {
-      this._pathBinding = this._pathBinding || {};
+      this._keyBinding = this._keyBinding || {};
       utils.forIn(this.binding, function (binding, selector) {
         if (utils.isString(binding)) {
-          binding = { path: binding };
+          binding = { key: binding };
         }
-        var nodes, path = binding.path, events = binding.events || ['change'];
+        var nodes, key = binding.key, events = binding.events || ['change'];
         if (selector === '$') {
           nodes = [this.el];
         } else if (this.ui && utils.has(this.ui, selector)) {
@@ -249,14 +249,14 @@ module.exports = function Bound () {
                 } else {
                   value = el.value;
                 }
-                this.set(path, value);
+                this.set(key, value);
               });
             }, this);
           }
         }, this));
         binding.selector = selector;
-        this._pathBinding[path] = this._pathBinding[path] || [];
-        this._pathBinding[path].push(binding);
+        this._keyBinding[key] = this._keyBinding[key] || [];
+        this._keyBinding[key].push(binding);
       }, this);
       this._isBound = true;
     }
@@ -264,10 +264,10 @@ module.exports = function Bound () {
 
   this.unbind = function () {
     if (this.binding && this._isBound) {
-      this._pathBinding = {};
+      this._keyBinding = {};
       utils.forIn(this.binding, function (binding, selector) {
         if (utils.isString(binding)) {
-          binding = { path: binding };
+          binding = { key: binding };
         }
         var nodes, events = binding.events || ['change'];
         if (selector === '$') {
@@ -290,8 +290,8 @@ module.exports = function Bound () {
 
   this.setDOMValue = function (key, value) {
     var nodes;
-    if (utils.has(this._pathBinding, key)) {
-      utils.forIn(this._pathBinding[key], function (binding) {
+    if (utils.has(this._keyBinding, key)) {
+      utils.forIn(this._keyBinding[key], function (binding) {
         if (binding.selector === '$') {
           nodes = [this.el];
         } else if (this.ui && utils.has(this.ui, binding.selector)) {
@@ -398,7 +398,7 @@ module.exports = function Listener () {
       var eid;
       if (e === window) {
         eid = 'window';
-      } else if (e === window.document) {
+      } else if (e === document) {
         eid = 'document';
       } else if ('function' !== typeof e.getAttribute) {
         return;
@@ -418,7 +418,7 @@ module.exports = function Listener () {
     var eid;
     if (el === window) {
       eid = 'window';
-    } else if (el === window.document) {
+    } else if (el === document) {
       eid = 'document';
     } else {
       eid = el.getAttribute('data-sector-eid');
@@ -456,7 +456,7 @@ module.exports = function Listener () {
     var eid, en, ev;
     if (el === window) {
       eid = 'window';
-    } else if (el === window.document) {
+    } else if (el === document) {
       eid = 'document';
     } else {
       eid = el.getAttribute('data-sector-eid');
@@ -509,9 +509,9 @@ module.exports = function Listener () {
       if (eid === 'window') {
         el = window;
       } else if (eid === 'document') {
-        el = window.document;
+        el = document;
       } else {
-        el = window.document.querySelector('[data-sector-eid=' + eid + ']');
+        el = document.querySelector('[data-sector-eid=' + eid + ']');
       }
       this.stopListening(el);
     }
@@ -526,7 +526,7 @@ module.exports = function PubSub () {
     this.trace && this.trace('=>> ' + topic , data);
     var message = '', parts = topic.split('.'), delim = 'pubsub.';
     var dispatch = function (e) {
-      window.document.dispatchEvent(e);
+      document.dispatchEvent(e);
     };
     for (var i = 0, l = parts.length; i < l; i++) {
       message += delim + parts[i];
@@ -539,7 +539,7 @@ module.exports = function PubSub () {
   this.subscribe = function (topic, func) {
     this.trace && this.trace('<<+>> ' + topic);
     func = utils.isString(func) ? this[func] : func;
-    this.listenTo(window.document, 'pubsub.' + topic, function (e) {
+    this.listenTo(document, 'pubsub.' + topic, function (e) {
       this.trace && this.trace('<<= ' + e.detail.topic, e.detail.data);
       func.call(this, {topic: e.detail.topic, data: e.detail.data});
     });
@@ -547,7 +547,7 @@ module.exports = function PubSub () {
 
   this.unsubscribe = function (topic) {
     this.trace && this.trace('<<x>> ' + (topic || 'all'));
-    this.stopListening(window.document, 'pubsub.' + topic);
+    this.stopListening(document, 'pubsub.' + topic);
   };
 };
 },{"../utils":12}],7:[function(_dereq_,module,exports){
@@ -940,7 +940,7 @@ var View = function View () {
           if (utils.has(_templateCache, this.template)) {
             source = _templateCache[this.template];
           } else {
-            el = window.document.querySelector(this.template);
+            el = document.querySelector(this.template);
             if (!el) { throw Error('template ' + this.template + ' not found'); }
             source = el.innerHTML;
             _templateCache[this.template] = source;
@@ -1095,12 +1095,12 @@ exports.mixin = function (mixins) {
 };
 
 exports.documentReady = function (func) {
-  if (window.document.readyState === 'complete' ||
-      window.document.readyState === 'loaded' ||
-      window.document.readyState === 'interactive') {
+  if (document.readyState === 'complete' ||
+      document.readyState === 'loaded' ||
+      document.readyState === 'interactive') {
     func();
   } else {
-    window.document.addEventListener('DOMContentLoaded', func);
+    document.addEventListener('DOMContentLoaded', func);
   }
 };
 
@@ -1114,7 +1114,7 @@ exports.select = function (el, selector, single) {
     selector = el;
     el = null;
   }
-  el = el || window.document;
+  el = el || document;
   return single ? el.querySelector(selector) : el.querySelectorAll(selector);
 };
 
@@ -1155,7 +1155,7 @@ exports.createEvent = function (type, data, options) {
       {detail: data, bubbles: options.bubbles, cancelable: options.cancelable}
     );
   } else {
-    e = window.document.createEvent('CustomEvent');
+    e = document.createEvent('CustomEvent');
     e.initCustomEvent(type, options.bubbles, options.cancelable, data);
   }
   return e;
@@ -1195,6 +1195,8 @@ exports.buildHtml = function (obj, hooks) {
       });
     } else if (key === 'text') {
       el = document.createTextNode(content.toString());
+    } else if (key === 'html') {
+      parent.innerHTML = content.toString();
     } else {
       var matches = key.match(/^([a-z][\w0-9-]*)?(?:#([a-z][\w0-9-]*))?((?:\.([a-z][\w0-9-]*))+)?$/i);
       tagName = matches[1] || 'div';
@@ -1204,7 +1206,7 @@ exports.buildHtml = function (obj, hooks) {
       if (id) { el.id = id; }
       if (className) { el.className = className; }
       if (exports.isString(content)) {
-        el.innerHTML = content;
+        el.textContent = content;
       } else {
         exports.forIn(content, function (value, name) {
           buildElement(el, name, value);
