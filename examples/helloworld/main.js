@@ -12,7 +12,7 @@ sector.Component.define({
 sector.Component.define({
   type: 'hello-world',
   ui: { button: 'button' },
-  events: { 'button click': 'handleClick' },
+  events: { 'click @button': 'handleClick' },
   handleClick: function () {
     this.publish('ui.alertRequested', 'Hello World :)');
   }

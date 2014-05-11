@@ -15,7 +15,7 @@ sector.Component.define({
     form: 'form'
   },
   events: {
-    'form submit': 'handleHelloSubmit'
+    'submit @form': 'handleHelloSubmit'
   },
   binding: {
     'input[name=name]': 'name',
@@ -41,7 +41,7 @@ sector.Component.define({
     form: 'form.animate'
   },
   events: {
-    'form submit': 'handleAnimateSubmit'
+    'submit @form': 'handleAnimateSubmit'
   },
   binding: {
     'input[name=startValue]': 'startValue',
