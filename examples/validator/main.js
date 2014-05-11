@@ -2,7 +2,7 @@
 function Alertable () {
 
   this.clearAlerts = function () {
-    var alerts = Array.prototype.slice.call(this.select('div.alert'));
+    var alerts = [].slice.call(this.selectAll('div.alert'));
     for (var i = alerts.length - 1; i >= 0; i--) {
       this.el.removeChild(alerts[i]);
     }
@@ -52,19 +52,19 @@ sector.Component.define({
   },
   events: {
     'submit': 'handleSubmit',
-    'firstName change': 'handleChange',
-    'firstName invalid': 'handleInvalid',
-    'lastName invalid': 'handleInvalid',
-    'email invalid': 'handleInvalid'
+    'change @firstName': 'handleChange',
+    'invalid @firstName': 'handleInvalid',
+    'invalid @lastName': 'handleInvalid',
+    'invalid @email': 'handleInvalid'
   },
   validation: {
-    firstName: { required: true },
-    lastName: { required: true },
-    email: { email: true }
+    '@firstName': { required: true },
+    '@lastName': { required: true },
+    '@email': { email: true }
   },
   binding: {
     'input[name=firstName], span.firstName': {
-      path: 'name.first',
+      key: 'name.first',
       events: ['change', 'keyup']
     },
     'input[name=lastName], span.lastName': 'name.last',
