@@ -10,7 +10,7 @@
   "noempty": true,
   "nonew": true,
   "quotmark": true,
-  "maxdepth": 2,
+  "maxdepth": 4,
   "indent": 2,
   "undef": true,
   "strict": false,
