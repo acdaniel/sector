@@ -6,7 +6,7 @@
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-05-11T02:05:42.090Z
+ * Date: 2014-05-16T23:40:11.570Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -237,13 +237,13 @@ module.exports = function Bound () {
           binding = { key: binding };
         }
         var nodes, key = binding.key, events = binding.events || ['change'];
-        if (selector === '$') {
-          nodes = [this.el];
-        } else if (this.ui && utils.has(this.ui, selector)) {
-          if (utils.isString(this.ui[selector])) {
-            throw new Error('Bound must be mixed in before View in order to use UI binding');
+        if (selector[0] === '@') {
+          nodes = this.ui[selector.substr(1)];
+          if (!Array.isArray(nodes) && !(nodes instanceof NodeList)) {
+            nodes = [nodes];
           }
-          nodes = [this.ui[selector]];
+        } else if (selector === '$') {
+          nodes = [this.el];
         } else {
           nodes = [].slice.call(this.selectAll(selector));
         }
@@ -279,10 +279,13 @@ module.exports = function Bound () {
           binding = { key: binding };
         }
         var nodes, events = binding.events || ['change'];
-        if (selector === '$') {
+        if (selector[0] === '@') {
+          nodes = this.ui[selector.substr(1)];
+          if (!Array.isArray(nodes) && !(nodes instanceof NodeList)) {
+            nodes = [nodes];
+          }
+        } else if (selector === '$') {
           nodes = [this.el];
-        } else if (this.ui && utils.has(this.ui, selector)) {
-          nodes = [this.ui[selector]];
         } else {
           nodes = [].slice.call(this.selectAll(selector));
         }
@@ -301,10 +304,13 @@ module.exports = function Bound () {
     var nodes;
     if (utils.has(this._keyBinding, key)) {
       utils.forIn(this._keyBinding[key], function (binding) {
-        if (binding.selector === '$') {
+        if (binding.selector[0] === '@') {
+          nodes = this.ui[binding.selector.substr(1)];
+          if (!Array.isArray(nodes) && !(nodes instanceof NodeList)) {
+            nodes = [nodes];
+          }
+        } else if (binding.selector === '$') {
           nodes = [this.el];
-        } else if (this.ui && utils.has(this.ui, binding.selector)) {
-          nodes = [this.ui[binding.selector]];
         } else {
           nodes = [].slice.call(this.selectAll(binding.selector));
         }
@@ -952,16 +958,18 @@ var View = function View () {
   this.setupEvents = function () {
     if (this.events) {
       utils.forIn(this.events, function (func, event) {
-        var el, type, parts = event.split(/[. ]+/, 2);
-        if (parts.length === 1) {
-          el = this.el;
-          type = parts[0];
-        } else if (parts[1][0] === '@') {
-          el = this.ui[parts[1].substr(1)];
-          type = parts[0];
+        var selector, el, type, spaceIndex = event.indexOf(' ');
+        if (spaceIndex >= 0) {
+          type = event.substr(0, event.indexOf(' '));
+          selector = event.substr(event.indexOf(' ') + 1);
+          if (selector[0] === '@') {
+            el = this.ui[selector.substr(1)];
+          } else {
+            el = this.selectAll(selector);
+          }
         } else {
-          el = this.selectAll(parts[1]);
-          type = parts[0];
+          el = this.el;
+          type = event;
         }
         this.listenTo(el, type, func);
       }, this);
@@ -971,16 +979,18 @@ var View = function View () {
   this.teardownEvents = function () {
     if (this.events) {
       utils.forIn(this.events, function (func, event) {
-        var el, type, parts = event.split(/[. ]+/, 2);
-        if (parts.length === 1) {
-          el = this.el;
-          type = parts[0];
-        } else if (parts[1][0] === '@') {
-          el = this.ui[parts[1].substr(1)];
-          type = parts[0];
+        var selector, el, type, spaceIndex = event.indexOf(' ');
+        if (spaceIndex >= 0) {
+          type = event.substr(0, event.indexOf(' '));
+          selector = event.substr(event.indexOf(' ') + 1);
+          if (selector[0] === '@') {
+            el = this.ui[selector.substr(1)];
+          } else {
+            el = this.selectAll(selector);
+          }
         } else {
-          el = this.selectAll(parts[1]);
-          type = parts[0];
+          el = this.el;
+          type = event;
         }
         this.stopListening(el, type);
       }, this);
