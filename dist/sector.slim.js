@@ -1,12 +1,12 @@
 /**
- * sector v0.2.1
+ * sector v0.3.0
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-05-16T23:44:43.865Z
+ * Date: 2014-06-03T19:21:37.849Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -102,15 +102,15 @@ module.exports = Component;
 
 exports.Component = _dereq_('./component');
 
-exports.init = function (func, options, root) {
+exports.init = function (options, cb) {
   var argsLength = arguments.length;
   if (argsLength === 1 && !exports.isFunction(arguments[0])) {
     options = arguments[0];
     func = null;
   }
-  root = root || document;
   options = options || {};
   exports.defaults(options, {
+    root: document,
     publishProgress: false,
     ignoreNotFound: false,
     componentSelector: '[data-component]',
@@ -127,8 +127,7 @@ exports.init = function (func, options, root) {
     document.dispatchEvent(e);
   };
   exports.documentReady(function () {
-    if (func) { func(); }
-    var nodes = [].slice.call(root.querySelectorAll(options.componentSelector));
+    var nodes = [].slice.call(options.root.querySelectorAll(options.componentSelector));
     var componentCount = nodes.length;
     function deferedForEach (fn) {
       var arr = this, i = 0, l = this.length;
@@ -161,7 +160,7 @@ exports.init = function (func, options, root) {
           }
         });
       }
-      el = (node.tagName.toLowerCase() === 'script') ? root : node;
+      el = (node.tagName.toLowerCase() === 'script') ? options.root : node;
       component = exports.registry.findComponent(type);
       if (component) {
         component.attachTo(el, componentOptions);
@@ -169,6 +168,7 @@ exports.init = function (func, options, root) {
         throw new Error('component ' + type + ' not found');
       }
     });
+    if (cb) { cb(); }
     pub(options.readyTopic, {});
   });
 };
@@ -191,6 +191,7 @@ exports.registry = _dereq_('./registry');
 
 var assign = _dereq_('lodash-node/modern/objects/assign');
 assign(exports, _dereq_('./utils'));
+
 },{"./component":1,"./mixins/bound":3,"./mixins/hooked":4,"./mixins/listener":5,"./mixins/pubsub":6,"./mixins/traceable":7,"./mixins/validator":8,"./mixins/view":9,"./registry":10,"./utils":12,"lodash-node/modern/objects/assign":24}],3:[function(_dereq_,module,exports){
 var utils = _dereq_('../utils');
 
@@ -252,8 +253,10 @@ module.exports = function Bound () {
             utils.forIn(events, function (eventName) {
               this.listenTo(node, eventName + ':bound', function (event) {
                 var value, el = event.target;
-                if (el.type.toLowerCase() === 'checkbox' || el.type.toLowerCase() === 'radio') {
-                  value = 'undefined' === typeof el.value ? true : el.value;
+                if (el.type.toLowerCase() === 'checkbox') {
+                  value = el.checked;
+                } else if (el.type.toLowerCase() === 'radio') {
+                  value = 'undefined' === typeof el.value ? 1 : el.value;
                   value = el.checked ? value : undefined;
                 } else {
                   value = el.value;
@@ -1385,6 +1388,7 @@ exports.easing = {
 };
 
 exports.animate = function (startValue, endValue, options, thisArg) {
+  options = options || {};
   exports.defaults(options, {
     duration: 1000,
     step: exports.noop,
