@@ -1,12 +1,12 @@
 /**
- * sector v0.3.0
+ * sector v0.3.1
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-06-03T19:21:37.849Z
+ * Date: 2014-06-03T21:12:12.093Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -31,7 +31,7 @@ var Component = function (options) {
   if (utils.has(specialOptions, 'el')) {
     this.el = utils.isString(specialOptions.el) ?
       utils.select(specialOptions.el, true) : specialOptions.el;
-    this.el.id = this.id;
+    if (this.el !== document) { this.el.id = this.id; }
     this.el.addEventListener('DOMNodeRemoved', function (event) {
       if (event.target === self.el) {
         self.el.removeEventListener('DOMNodeRemoved', this);
@@ -103,11 +103,6 @@ module.exports = Component;
 exports.Component = _dereq_('./component');
 
 exports.init = function (options, cb) {
-  var argsLength = arguments.length;
-  if (argsLength === 1 && !exports.isFunction(arguments[0])) {
-    options = arguments[0];
-    func = null;
-  }
   options = options || {};
   exports.defaults(options, {
     root: document,
@@ -129,10 +124,14 @@ exports.init = function (options, cb) {
   exports.documentReady(function () {
     var nodes = [].slice.call(options.root.querySelectorAll(options.componentSelector));
     var componentCount = nodes.length;
+    function finishInit () {
+      if (cb) { cb(); }
+      pub(options.readyTopic, {});
+    }
     function deferedForEach (fn) {
       var arr = this, i = 0, l = this.length;
       function next () {
-        if (i >= l) { return; }
+        if (i >= l) { return finishInit(); }
         fn(arr[i], i++);
         exports.defer(next);
       }
@@ -168,8 +167,9 @@ exports.init = function (options, cb) {
         throw new Error('component ' + type + ' not found');
       }
     });
-    if (cb) { cb(); }
-    pub(options.readyTopic, {});
+    if (!options.publishProgress) {
+      finishInit();
+    }
   });
 };
 
