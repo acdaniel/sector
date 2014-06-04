@@ -1,12 +1,12 @@
 /**
- * sector v0.3.1
+ * sector v0.3.2
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-06-03T21:12:12.091Z
+ * Date: 2014-06-04T20:12:39.116Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -197,6 +197,19 @@ var utils = _dereq_('../utils');
 
 module.exports = function Bound () {
 
+  function traverse (obj, key, cb, thisArg) {
+    var value;
+    for (var name in obj) {
+      value = obj[name];
+      var newKey = key ? key + '.' + name : name;
+      if ('object' === typeof value) {
+        traverse(value, newKey);
+      } else {
+        cb.call(thisArg, newKey, value);
+      }
+    }
+  }
+
   this.defaults = utils.defaults({}, this.defaults, {
     data: null,
     binding: null
@@ -204,26 +217,21 @@ module.exports = function Bound () {
 
   this.update = function (obj) {
     if (obj) {
+      var oldData = this.data;
       this.data = obj;
+      var e = utils.createEvent('datachange', { oldValue: oldData, newValue: this.data });
+      this.el.dispatchEvent(e);
     }
-    var traverse = function (obj, key) {
-      var value;
-      for (var name in obj) {
-        value = obj[name];
-        var newKey = key ? key + '.' + name : name;
-        if ('object' === typeof value) {
-          traverse(value, newKey);
-        } else {
-          this.setDOMValue(newKey, value);
-        }
-      }
-    }.bind(this);
-    traverse(this.data, '');
+    traverse(this.data, '', this.setDOMValue, this);
   };
 
   this.set = function (key, value) {
-    this.setDataValue(key, value);
-    this.setDOMValue(key, value);
+    if ('undefined' === typeof value) {
+      traverse(key, '', this.set, this);
+    } else {
+      this.setDataValue(key, value);
+      this.setDOMValue(key, value);
+    }
   };
 
   this.get = function (key) {
