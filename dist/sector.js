@@ -6,7 +6,7 @@
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-07-02T21:01:51.474Z
+ * Date: 2014-07-16T20:45:45.872Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -325,7 +325,7 @@ module.exports = function Bound () {
   };
 
   this.setDOMValue = function (key, value) {
-    var nodes;
+    var nodes, domValue = utils.clone(value);
     if (utils.has(this._keyBinding, key)) {
       utils.forIn(this._keyBinding[key], function (binding) {
         if (binding.selector[0] === '@') {
@@ -342,19 +342,19 @@ module.exports = function Bound () {
           if (utils.isString(binding.format)) {
             binding.format = this[binding.format];
           }
-          value = binding.format.call(this, value);
+          domValue = binding.format.call(this, value);
         }
         nodes.forEach(function (node) {
-          var strValue = ('undefined' === typeof value  || value === null) ? '' : value.toString();
+          var strValue = ('undefined' === typeof domValue  || domValue === null) ? '' : domValue.toString();
           if (binding.property) {
-            utils.setObjectPath(node, binding.property, value);
+            utils.setObjectPath(node, binding.property, domValue);
           } else if (binding.attribute) {
             node.setAttribute(binding.attribute, strValue);
           } else if (binding.html) {
             node.innerHTML = strValue;
           } else if (node.tagName === 'INPUT' || node.tagName === 'SELECT' || node.tagName === 'TEXTAREA') {
             if (node.type.toLowerCase() === 'checkbox') {
-              node.checked = (value === true || value === 1 || value === 'true' || value === 'on');
+              node.checked = (domValue === true || domValue === 1 || domValue === 'true' || domValue === 'on');
             } else if (node.type.toLowerCase() === 'radio') {
               node.checked = node.value === strValue;
             } else {
