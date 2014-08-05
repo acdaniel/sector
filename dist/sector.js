@@ -6,7 +6,7 @@
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-07-31T20:42:32.416Z
+ * Date: 2014-08-05T03:43:07.339Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -239,7 +239,7 @@ module.exports = function Bound () {
   };
 
   this.set = function (key, value) {
-    if ('undefined' === typeof value) {
+    if (!utils.isString(key)) {
       traverse(key, '', this.set, this);
     } else {
       this.setDataValue(key, value);
@@ -461,24 +461,24 @@ module.exports = function Listener () {
     }
     nodes.forEach(function (node, index) {
       var eid;
-      var removedListener = function (event) {
-        var e = event.target;
-        if (e !== node) { return; }
-        var eid;
-        if (e === window) {
-          eid = 'window';
-        } else if (e === document) {
-          eid = 'document';
-        } else if ('function' !== typeof e.getAttribute) {
-          return;
-        } else {
-          eid = e.getAttribute('data-sector-eid');
-        }
-        if (this._listeners[eid]) {
-          this.trace('element removed', node);
-          this.stopListening(el);
-        }
-      };
+      // var removedListener = function (event) {
+      //   var e = event.target;
+      //   if (e !== node) { return; }
+      //   var eid;
+      //   if (e === window) {
+      //     eid = 'window';
+      //   } else if (e === document) {
+      //     eid = 'document';
+      //   } else if ('function' !== typeof e.getAttribute) {
+      //     return;
+      //   } else {
+      //     eid = e.getAttribute('data-sector-eid');
+      //   }
+      //   if (this._listeners[eid]) {
+      //     this.trace('element removed', node);
+      //     this.stopListening(el);
+      //   }
+      // };
       var listener = function (event) {
         if (this.trace) { this.trace('<- ' + event.target + '.' + event.type); }
         func.apply(this, arguments);
@@ -496,8 +496,8 @@ module.exports = function Listener () {
       }
       if (!this._listeners[eid]) {
         this._listeners[eid] = {};
-        this._listeners[eid].DOMNodeRemoved = removedListener.bind(this);
-        node.addEventListener('DOMNodeRemoved', this._listeners[eid].DOMNodeRemoved, false);
+        // this._listeners[eid].DOMNodeRemoved = removedListener.bind(this);
+        // node.addEventListener('DOMNodeRemoved', this._listeners[eid].DOMNodeRemoved, false);
       }
       if (!this._listeners[eid][eventNamespace]) {
         this._listeners[eid][eventNamespace] = {};
