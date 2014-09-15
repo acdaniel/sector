@@ -1,3 +1,4 @@
 bower_components
 npm_modules
 sector.sublime-workspace
+.sublime-gulp.cache
