@@ -1,12 +1,12 @@
 /**
- * sector v0.3.12
+ * sector v0.3.13
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-09-15T14:33:33.072Z
+ * Date: 2014-09-15T17:56:35.010Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -805,7 +805,7 @@ module.exports = function Validator () {
       nodes = [].slice.call(this.selectAll('[name="' + field + '"]'));
     } else if (utils.isElement(field)) {
       nodes = [field];
-    } else if (utils.isArray(field)) {
+    } else if (Array.isArray(field)) {
       nodes = field;
     } else {
       nodes = [].slice.call(field);
@@ -828,7 +828,7 @@ module.exports = function Validator () {
   };
 
   this.formatValidityMessage = function (msg, args) {
-    args = !utils.isArray(args) ? [args] : args;
+    args = !Array.isArray(args) ? [args] : args;
     return msg.replace(/{{([0-9]+)}}/g, function (str, p1) {
       return args[p1];
     });
@@ -874,7 +874,7 @@ validators = {
     return true;
   },
   range: function (field, value, options) {
-    if (utils.isArray(options)) {
+    if (Array.isArray(options)) {
       options = { min: options[0], max: options[1] };
     }
     var msg = utils.has(options, 'message') ? options.message : this.validityMessages.range;
