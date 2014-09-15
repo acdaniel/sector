@@ -1,12 +1,12 @@
 /**
- * sector v0.3.10
+ * sector v0.3.11
  * A component and pub/sub based UI library for javascript applications.
  * https://github.com/acdaniel/sector
  *
  * Copyright 2014 Adam Daniel <adam@acdaniel.com>
  * Released under the MIT license
  *
- * Date: 2014-08-14T19:15:55.968Z
+ * Date: 2014-09-15T14:28:41.084Z
  */
 !function(e){if("object"==typeof exports)module.exports=e();else if("function"==typeof define&&define.amd)define(e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.sector=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
 var utils = _dereq_('./utils'),
@@ -32,12 +32,6 @@ var Component = function (options) {
     this.el = utils.isString(specialOptions.el) ?
       utils.select(specialOptions.el, true) : specialOptions.el;
     if (this.el !== document) { this.el.id = this.id; }
-    this.el.addEventListener('DOMNodeRemoved', function (event) {
-      if (event.target === self.el) {
-        self.el.removeEventListener('DOMNodeRemoved', this);
-        self.destroy();
-      }
-    }, false);
     this.after('destroy', function () {
       this.el = undefined;
     });
@@ -137,6 +131,24 @@ exports.init = function (options, cb) {
       }
       next();
     }
+    if (MutationObserver) {
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          var node, instance;
+          for (var i = 0, l = mutation.removedNodes.length; i < l; i++) {
+            instance = null;
+            node = mutation.removedNodes[i];
+            if (node.id) {
+              instance = exports.registry.findInstance(node.id);
+              if (instance) {
+                instance.destroy();
+              } 
+            }
+          }
+        });
+      });
+      observer.observe(document, { childList: true });
+    }
     var f = options.publishProgress ? deferedForEach : Array.prototype.forEach;
     f.call(nodes, function (node, index) {
       if (options.publishProgress) {
@@ -163,6 +175,14 @@ exports.init = function (options, cb) {
       component = exports.registry.findComponent(type);
       if (component) {
         component.attachTo(el, componentOptions);
+        if (!MutationObserver) {
+          el.addEventListener('DOMNodeRemoved', function (event) {
+            if (event.target === el) {
+              el.removeEventListener('DOMNodeRemoved', this);
+              component.destroy();
+            }
+          }, false);
+        }
       } else if (!options.ignoreNotFound) {
         throw new Error('component ' + type + ' not found');
       }
@@ -484,6 +504,9 @@ module.exports = function Listener () {
     var eventParts = event.split(':', 2);
     var eventName = eventParts[0], eventNamespace = eventParts[1] || '_';
     func = utils.isString(func) ? this[func] : func;
+    if (!func) {
+      throw new Error(this + ' Error: Invalid handler for ' + el.toString() + '.' + event);
+    }
     this._listeners = this._listeners || {};
     if (!el) { return; }
     var nodes;
@@ -496,24 +519,6 @@ module.exports = function Listener () {
     }
     nodes.forEach(function (node, index) {
       var eid;
-      // var removedListener = function (event) {
-      //   var e = event.target;
-      //   if (e !== node) { return; }
-      //   var eid;
-      //   if (e === window) {
-      //     eid = 'window';
-      //   } else if (e === document) {
-      //     eid = 'document';
-      //   } else if ('function' !== typeof e.getAttribute) {
-      //     return;
-      //   } else {
-      //     eid = e.getAttribute('data-sector-eid');
-      //   }
-      //   if (this._listeners[eid]) {
-      //     this.trace('element removed', node);
-      //     this.stopListening(el);
-      //   }
-      // };
       var listener = function (event) {
         if (this.trace) { this.trace('<- ' + event.target + '.' + event.type); }
         func.apply(this, arguments);
@@ -531,8 +536,6 @@ module.exports = function Listener () {
       }
       if (!this._listeners[eid]) {
         this._listeners[eid] = {};
-        // this._listeners[eid].DOMNodeRemoved = removedListener.bind(this);
-        // node.addEventListener('DOMNodeRemoved', this._listeners[eid].DOMNodeRemoved, false);
       }
       if (!this._listeners[eid][eventNamespace]) {
         this._listeners[eid][eventNamespace] = {};
@@ -911,7 +914,7 @@ validators = {
     return true;
   },
   rangelength: function (field, value, options) {
-    if (utils.isArray(options)) {
+    if (Array.isArray(options)) {
       options = { min: options[0], max: options[1] };
     }
     var msg = utils.has(options, 'message') ? options.message : this.validityMessages.rangelength;
@@ -1099,7 +1102,9 @@ var View = function View () {
   }
 
   this.remove = function () {
-    this.el.parentNode.removeChild(this.el);
+    if (this.el && this.el.parentNode) {
+      this.el.parentNode.removeChild(this.el);
+    }
   };
 
   this.before('initialize', function () {
@@ -1123,9 +1128,6 @@ var Registry = function () {
 
 Registry.prototype.addComponent = function (component) {
   var type = component.prototype.type;
-  // if (this.components[type]) {
-  //   throw new Error('a component with type ' + type + ' is already defined');
-  // }
   this.components[type] = component;
 };
 
@@ -1185,7 +1187,6 @@ if ('undefined' !== typeof _) {
   exports.clone = _.clone;
   exports.isEmpty = _.isEmpty;
   exports.isString = _.isString;
-  exports.isArray = _.isArray;
   exports.isFunction = _.isFunction;
   exports.isElement = _.isElement;
   exports.forIn = _.forIn;
